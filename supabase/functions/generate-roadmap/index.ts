@@ -1,13 +1,13 @@
-// Use standard 'npm:' specifiers for Supabase instead of esm.sh
-import { createClient } from "@supabase/supabase-js";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Deno.serve replaces the old deprecated "serve" function import
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -246,32 +246,32 @@ function getFallbackMatches() {
       summary:
         "Product Managers decide what gets built, why it matters, and whether it's working — bridging users, business, and engineering.",
       matchReason:
-        "Your natural leadership skills and clear communication make coordination roles ideal.",
-      fitScore: 78,
+        "Your leadership instincts and big-picture thinking align well with what great product managers do.",
+      fitScore: 68,
       requiredSkills: [
-        { name: "Agile Methodologies", level: "beginner" },
-        { name: "Product Strategy", level: "beginner" },
+        { name: "Strategy", level: "intermediate" },
+        { name: "Agile", level: "beginner" },
       ],
       outlook:
-        "Highly valued role in growing startups and tech companies looking to scale their software products.",
+        "Highly valued in tech and startups — strong salary potential, but typically needs 1-2 years of adjacent experience first.",
       roadmap: [
         {
           order: 1,
-          title: "Understand the lifecycle",
+          title: "Read the fundamentals",
           detail:
-            "Read Product Management in Practice and follow industry blogs like Product School to learn standard jargon.",
+            "Start with 'Inspired' by Marty Cagan. It gives you the mental models every product manager needs.",
         },
         {
           order: 2,
-          title: "Lead small initiatives",
+          title: "Get hands-on exposure",
           detail:
-            "Volunteer to coordinate a project or hackathon team. Focus on organizing work backlogs and assigning tasks.",
+            "Join a student startup, hackathon, or open-source project in a coordination role. Real exposure beats theory.",
         },
         {
           order: 3,
-          title: "Learn basic tech concepts",
+          title: "Document your thinking",
           detail:
-            "Understand how APIs work and get comfortable talking to developer colleagues without needing to code heavily.",
+            "Write product teardowns of apps you love and publish them online. This is your proof of thinking.",
         },
       ],
     },

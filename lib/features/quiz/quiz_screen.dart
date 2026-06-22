@@ -29,7 +29,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   bool get _hasAnswer {
     final a = _answers[_question.id];
     if (a == null) return false;
-    if (a is List) return (a as List).isNotEmpty;
+    if (a is List) return (a).isNotEmpty;
     if (a is String) return a.isNotEmpty;
     return false;
   }
@@ -91,7 +91,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     try {
       await ref.read(quizRepositoryProvider).saveResponses(_answers);
       ref.invalidate(quizResponseProvider);
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/roadmap'); // ← changed from /home
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

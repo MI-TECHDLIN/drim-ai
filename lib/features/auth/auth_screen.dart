@@ -1,15 +1,15 @@
+import 'package:drim_ai/widgets/drim_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/app_config.dart';
-import '../../state/providers.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_radii.dart';
-import '../../theme/app_shadows.dart';
-import '../../theme/app_spacing.dart';
-import '../../widgets/drim_logo.dart';
+import 'package:drim_ai/core/app_config.dart';
+import 'package:drim_ai/state/providers.dart';
+import 'package:drim_ai/theme/app_colors.dart';
+import 'package:drim_ai/theme/app_radii.dart';
+import 'package:drim_ai/theme/app_shadows.dart';
+import 'package:drim_ai/theme/app_spacing.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -51,14 +51,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     try {
       final auth = ref.read(authRepositoryProvider);
+
       if (_isSignUp) {
         await auth.signUp(email: email, password: password);
+        // New user always needs onboarding
+        if (mounted) context.go('/onboarding');
       } else {
         await auth.signIn(email: email, password: password);
+        if (!mounted) return;
+        // Check if returning user has completed onboarding
+        final profile = await ref
+            .read(profileRepositoryProvider)
+            .getMyProfile();
+        if (!mounted) return;
+        context.go(
+          (profile != null && profile.isComplete) ? '/home' : '/onboarding',
+        );
       }
-      // GoRouter's refreshListenable handles the redirect automatically.
-      // Manual fallback in case Supabase event is slow:
-      if (mounted) context.go('/home');
     } on AuthException catch (e) {
       _showError(e.message);
     } catch (_) {
