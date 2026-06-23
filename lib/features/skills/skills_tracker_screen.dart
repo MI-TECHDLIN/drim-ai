@@ -161,7 +161,9 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                           children: [
                             _SquareIconButton(
                               icon: Icons.arrow_back_rounded,
-                              onTap: () => context.pop(),
+                              onTap: () => GoRouter.of(context).canPop()
+                                  ? context.pop()
+                                  : context.go('/home'),
                             ),
                             _SquareIconButton(
                               icon: Icons.more_horiz_rounded,

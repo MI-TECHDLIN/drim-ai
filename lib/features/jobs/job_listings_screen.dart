@@ -43,7 +43,9 @@ class JobListingsScreen extends ConsumerWidget {
                           children: [
                             _SquareIconButton(
                               icon: Icons.arrow_back_rounded,
-                              onTap: () => context.pop(),
+                              onTap: () => GoRouter.of(context).canPop()
+                                  ? context.pop()
+                                  : context.go('/home'),
                             ),
                             _SquareIconButton(
                               icon: Icons.search_rounded,
@@ -80,7 +82,7 @@ class JobListingsScreen extends ConsumerWidget {
                             careerTitle: careerTitle,
                           ),
                           loading: () => const _LoadingState(),
-                          error: (_, __) => _FallbackBanner(
+                          error: (_, _) => _FallbackBanner(
                             message:
                                 'Could not load listings. Showing examples.',
                           ),
@@ -143,15 +145,19 @@ class _JobCard extends StatelessWidget {
 
   IconData get _icon {
     final title = job.title.toLowerCase();
-    if (title.contains('design') || title.contains('ux'))
+    if (title.contains('design') || title.contains('ux')) {
       return Icons.design_services_rounded;
-    if (title.contains('data') || title.contains('analyst'))
+    }
+    if (title.contains('data') || title.contains('analyst')) {
       return Icons.bar_chart_rounded;
+    }
     if (title.contains('research')) return Icons.search_rounded;
-    if (title.contains('product') || title.contains('manager'))
+    if (title.contains('product') || title.contains('manager')) {
       return Icons.inventory_2_rounded;
-    if (title.contains('engineer') || title.contains('dev'))
+    }
+    if (title.contains('engineer') || title.contains('dev')) {
       return Icons.code_rounded;
+    }
     return Icons.work_rounded;
   }
 

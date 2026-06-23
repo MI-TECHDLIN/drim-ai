@@ -122,12 +122,18 @@ class _CareerDetailScreenState extends ConsumerState<CareerDetailScreen> {
               ),
             )
           : _match == null
-          ? _ErrorBody(onBack: () => context.pop())
+          ? _ErrorBody(
+              onBack: () => GoRouter.of(context).canPop()
+                  ? context.pop()
+                  : context.go('/home'),
+            )
           : _DetailBody(
               match: _match!,
               potentialLabel: _potentialLabel,
               isSaving: _isSaving,
-              onBack: () => context.pop(),
+              onBack: () => GoRouter.of(context).canPop()
+                  ? context.pop()
+                  : context.go('/home'),
               onSave: _savePath,
               onJobs: () =>
                   context.go('/jobs/${Uri.encodeComponent(_match!.title)}'),
