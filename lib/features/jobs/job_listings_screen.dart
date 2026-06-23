@@ -1,3 +1,4 @@
+import 'package:drim_ai/widgets/drim_states.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,15 +77,47 @@ class JobListingsScreen extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.lg),
 
                         // ── Content ────────────────────────────────
+                        // Inside JobListingsScreen.build(), replace the listingsAsync.when block:
                         listingsAsync.when(
-                          data: (listings) => _ListingsContent(
-                            listings: listings.cast<JobListing>(),
-                            careerTitle: careerTitle,
+                          data: (rawListings) {
+                            final listings = rawListings.cast<JobListing>();
+                            if (listings.isEmpty) {
+                              return DrimEmptyState(
+                                icon: Icons.work_off_rounded,
+                                title: 'No listings found',
+                                body:
+                                    'We couldn\'t find live roles for ${careerTitle} right now. '
+                                    'Try searching on LinkedIn or Glassdoor directly.',
+                                buttonLabel: 'BACK TO YOUR PATH',
+                                onAction: () => context.pop(),
+                              );
+                            }
+                            return _ListingsContent(
+                              listings: listings,
+                              careerTitle: careerTitle,
+                            );
+                          },
+                          loading: () => Column(
+                            children: [
+                              DrimLoadingCard(
+                                height: 100,
+                                message: 'Finding live opportunities...',
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              DrimLoadingCard(height: 100),
+                              const SizedBox(height: AppSpacing.md),
+                              DrimLoadingCard(height: 100),
+                            ],
                           ),
-                          loading: () => const _LoadingState(),
-                          error: (_, _) => _FallbackBanner(
-                            message:
-                                'Could not load listings. Showing examples.',
+                          error: (_, __) => DrimErrorState(
+                            title: 'Couldn\'t load job listings',
+                            body:
+                                'The listings service is unavailable. '
+                                'Here are some example roles to give you an idea of what\'s out there.',
+                            buttonLabel: 'SEE EXAMPLE ROLES',
+                            onRetry: () => ref.invalidate(
+                              jobListingsProvider(careerTitle),
+                            ),
                           ),
                         ),
 
