@@ -1,0 +1,596 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../models/career_match.dart';
+import '../../state/providers.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_radii.dart';
+import '../../theme/app_shadows.dart';
+import '../../theme/app_spacing.dart';
+
+class CareerDetailScreen extends ConsumerStatefulWidget {
+  final String matchId;
+  final CareerMatch? initialMatch;
+
+  const CareerDetailScreen({
+    super.key,
+    required this.matchId,
+    this.initialMatch,
+  });
+
+  @override
+  ConsumerState<CareerDetailScreen> createState() => _CareerDetailScreenState();
+}
+
+class _CareerDetailScreenState extends ConsumerState<CareerDetailScreen> {
+  CareerMatch? _match;
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialMatch != null) {
+      _match = widget.initialMatch;
+      _isLoading = false;
+    } else {
+      _loadMatch();
+    }
+  }
+
+  Future<void> _loadMatch() async {
+    try {
+      final m = await ref
+          .read(roadmapRepositoryProvider)
+          .getMatch(widget.matchId);
+      if (mounted)
+        setState(() {
+          _match = m;
+          _isLoading = false;
+        });
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _savePath() async {
+    if (_match == null || _isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      await ref
+          .read(skillProgressRepositoryProvider)
+          .initializeSkills(widget.matchId, _match!.requiredSkills);
+      await ref.read(roadmapRepositoryProvider).saveMatch(widget.matchId);
+
+      if (mounted) {
+        context.go('/skills/${widget.matchId}', extra: _match);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not save path. Try again.',
+              style: GoogleFonts.inter(),
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  String get _potentialLabel {
+    final score = _match?.fitScore ?? 0;
+    if (score >= 80) return 'HIGH POTENTIAL';
+    if (score >= 65) return 'GOOD FIT';
+    return 'WORTH EXPLORING';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.sand,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.anchor,
+                strokeWidth: 2,
+              ),
+            )
+          : _match == null
+          ? _ErrorBody(onBack: () => context.pop())
+          : _DetailBody(
+              match: _match!,
+              potentialLabel: _potentialLabel,
+              isSaving: _isSaving,
+              onBack: () => context.pop(),
+              onSave: _savePath,
+              onJobs: () =>
+                  context.go('/jobs/${Uri.encodeComponent(_match!.title)}'),
+            ),
+    );
+  }
+}
+
+// ── Detail body ────────────────────────────────────────────────────────────
+
+class _DetailBody extends StatelessWidget {
+  final CareerMatch match;
+  final String potentialLabel;
+  final bool isSaving;
+  final VoidCallback onBack;
+  final VoidCallback onSave;
+  final VoidCallback onJobs;
+
+  const _DetailBody({
+    required this.match,
+    required this.potentialLabel,
+    required this.isSaving,
+    required this.onBack,
+    required this.onSave,
+    required this.onJobs,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Scrollable content
+        Expanded(
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // ── Status bar spacer ──────────────────────────
+                    const SizedBox(height: 56),
+
+                    // ── Back button ────────────────────────────────
+                    _SquareIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      onTap: onBack,
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Title ──────────────────────────────────────
+                    Text(
+                      match.title.toUpperCase(),
+                      style: GoogleFonts.poppins(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.anchor,
+                        height: 1.1,
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Match % + potential label ──────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${match.fitScore ?? 0}% MATCH',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          potentialLabel,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.muted,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Fit score bar ──────────────────────────────
+                    Container(
+                      height: 14,
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        border: Border.all(color: AppColors.border, width: 2),
+                        boxShadow: const [AppShadows.hardSm],
+                      ),
+                      child: LinearProgressIndicator(
+                        value: (match.fitScore ?? 0) / 100.0,
+                        backgroundColor: AppColors.surface,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.sage,
+                        ),
+                        minHeight: 14,
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // ── WHAT IT IS ─────────────────────────────────
+                    _SectionHeader('WHAT IT IS'),
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        border: Border.all(color: AppColors.border, width: 2),
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                        boxShadow: const [AppShadows.hardSm],
+                      ),
+                      child: Text(
+                        match.summary ?? 'No description available.',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppColors.ink,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // ── SKILLS YOU'LL NEED ─────────────────────────
+                    _SectionHeader('SKILLS YOU\'LL NEED'),
+                    const SizedBox(height: AppSpacing.md),
+                    SizedBox(
+                      height: 44,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: match.requiredSkills
+                            .map(
+                              (skill) => Padding(
+                                padding: const EdgeInsets.only(
+                                  right: AppSpacing.sm,
+                                ),
+                                child: _SkillChip(skill: skill),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // ── YOUR ROADMAP ───────────────────────────────
+                    _SectionHeader('YOUR ROADMAP'),
+                    const SizedBox(height: AppSpacing.md),
+                    ...match.roadmap.map(
+                      (step) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _RoadmapStepCard(step: step),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.md),
+
+                    // ── See real jobs link ─────────────────────────
+                    GestureDetector(
+                      onTap: onJobs,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'See real job listings for ${match.title}  →',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.anchor,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.anchor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.xl),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Sticky SAVE THIS PATH button ───────────────────────────────
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                boxShadow: const [AppShadows.hard],
+              ),
+              child: ElevatedButton(
+                onPressed: isSaving ? null : onSave,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.anchor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                    side: const BorderSide(color: AppColors.border, width: 2),
+                  ),
+                ),
+                child: isSaving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'SAVE THIS PATH',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          const Icon(Icons.bookmark_rounded, size: 20),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Error body ─────────────────────────────────────────────────────────────
+
+class _ErrorBody extends StatelessWidget {
+  final VoidCallback onBack;
+  const _ErrorBody({required this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SquareIconButton(icon: Icons.arrow_back_rounded, onTap: onBack),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Could not load this career.',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Shared widgets ─────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String text;
+  const _SectionHeader(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          text,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        const Expanded(child: Divider(color: AppColors.line, thickness: 1.5)),
+      ],
+    );
+  }
+}
+
+class _SkillChip extends StatelessWidget {
+  final SkillTag skill;
+  const _SkillChip({required this.skill});
+
+  IconData get _icon {
+    final name = skill.name.toLowerCase();
+    if (name.contains('figma') || name.contains('design'))
+      return Icons.brush_rounded;
+    if (name.contains('research') || name.contains('user'))
+      return Icons.search_rounded;
+    if (name.contains('wire') || name.contains('layer'))
+      return Icons.layers_rounded;
+    if (name.contains('python') || name.contains('code'))
+      return Icons.code_rounded;
+    if (name.contains('data') || name.contains('stat'))
+      return Icons.bar_chart_rounded;
+    if (name.contains('agile') || name.contains('scrum'))
+      return Icons.loop_rounded;
+    if (name.contains('strategy')) return Icons.lightbulb_rounded;
+    return Icons.star_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.sage,
+        border: Border.all(color: AppColors.border, width: 2),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        boxShadow: const [AppShadows.hardSm],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_icon, size: 14, color: AppColors.ink),
+          const SizedBox(width: 5),
+          Text(
+            skill.name.toUpperCase(),
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoadmapStepCard extends StatelessWidget {
+  final RoadmapStep step;
+  const _RoadmapStepCard({required this.step});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border, width: 2),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        boxShadow: const [AppShadows.hardSm],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Number box
+          Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(
+              border: Border(
+                right: BorderSide(color: AppColors.border, width: 2),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                '${step.order}',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+          ),
+
+          // Apricot accent bar
+          Container(
+            width: 4,
+            color: AppColors.apricot,
+            margin: const EdgeInsets.only(right: AppSpacing.md),
+          ),
+
+          // Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.md,
+                horizontal: AppSpacing.xs,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.title.toUpperCase(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    step.detail,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.muted,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(width: AppSpacing.md),
+        ],
+      ),
+    );
+  }
+}
+
+class _SquareIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SquareIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border, width: 2),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          boxShadow: const [AppShadows.hardSm],
+        ),
+        child: Icon(icon, size: 20, color: AppColors.ink),
+      ),
+    );
+  }
+}
