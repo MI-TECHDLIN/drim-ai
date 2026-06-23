@@ -46,20 +46,22 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                 .map((s) => SkillProgress.local(s.name))
                 .toList() ??
             [];
-        if (mounted)
+        if (mounted) {
           setState(() {
             _skills = skills;
             _isLoading = false;
           });
+        }
       } else {
         final skills = await ref
             .read(skillProgressRepositoryProvider)
             .getSkills(widget.matchId);
-        if (mounted)
+        if (mounted) {
           setState(() {
             _skills = skills;
             _isLoading = false;
           });
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
@@ -68,17 +70,23 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
 
   Future<void> _cycleStatus(SkillProgress skill) async {
     final next = skill.nextStatus;
+    final oldStatus = skill.status;
 
     setState(() => skill.status = next);
 
     if (!skill.id.startsWith('local_')) {
       try {
-        await ref
+        final updated = await ref
             .read(skillProgressRepositoryProvider)
             .updateStatus(skill.id, next);
+
+        if (updated != null && mounted) {
+          setState(() {
+            skill.status = updated.status;
+          });
+        }
       } catch (_) {
-        // Revert on failure
-        if (mounted) setState(() => skill.status = skill.nextStatus);
+        if (mounted) setState(() => skill.status = oldStatus);
       }
     }
   }
@@ -214,7 +222,7 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                             tween: Tween(begin: 0.0, end: _progress),
                             duration: const Duration(milliseconds: 500),
                             curve: Curves.easeOut,
-                            builder: (_, val, __) => LinearProgressIndicator(
+                            builder: (_, val, _) => LinearProgressIndicator(
                               value: val,
                               backgroundColor: AppColors.surface,
                               valueColor: const AlwaysStoppedAnimation<Color>(
