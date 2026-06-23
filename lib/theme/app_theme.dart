@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'app_colors.dart';
-import 'app_radii.dart';
-import 'app_spacing.dart';
-import 'app_typography.dart';
+import 'package:drim_ai/theme/app_colors.dart';
+import 'package:drim_ai/theme/app_radii.dart';
+import 'package:drim_ai/theme/app_spacing.dart';
+import 'package:drim_ai/theme/app_typography.dart';
 
 abstract class AppTheme {
   static ThemeData get light {

@@ -57,16 +57,20 @@ class SkillProgressRepository {
         .toList();
   }
 
-  Future<void> updateStatus(String skillId, String newStatus) async {
-    if (!AppConfig.isConfigured) return;
-    if (skillId.startsWith('local_')) return; // local-only, no DB
+  Future<SkillProgress?> updateStatus(String skillId, String newStatus) async {
+    if (!AppConfig.isConfigured) return null;
+    if (skillId.startsWith('local_')) return null; // local-only, no DB
 
-    await supabase
+    final data = await supabase
         .from('skill_progress')
         .update({
           'status': newStatus,
           'updated_at': DateTime.now().toIso8601String(),
         })
-        .eq('id', skillId);
+        .eq('id', skillId)
+        .select()
+        .single();
+
+    return SkillProgress.fromJson(data as Map<String, dynamic>);
   }
 }

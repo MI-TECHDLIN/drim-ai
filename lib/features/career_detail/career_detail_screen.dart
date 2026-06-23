@@ -44,11 +44,12 @@ class _CareerDetailScreenState extends ConsumerState<CareerDetailScreen> {
       final m = await ref
           .read(roadmapRepositoryProvider)
           .getMatch(widget.matchId);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _match = m;
           _isLoading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -63,22 +64,36 @@ class _CareerDetailScreenState extends ConsumerState<CareerDetailScreen> {
           .read(skillProgressRepositoryProvider)
           .initializeSkills(widget.matchId, _match!.requiredSkills);
       await ref.read(roadmapRepositoryProvider).saveMatch(widget.matchId);
+      ref.invalidate(dashboardProvider);
 
       if (mounted) {
         context.go('/skills/${widget.matchId}', extra: _match);
       }
-    } catch (_) {
+    } catch (e, st) {
+      // Log the error for debugging and show a helpful message with retry.
+      // Errors here are often Supabase permission or network issues.
+      // Print so it's visible in the logs when running locally.
+      // ignore: avoid_print
+      print('Failed to save path: $e\n$st');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Could not save path. Try again.',
+              'Could not save path: ${e.toString()}',
               style: GoogleFonts.inter(),
             ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadii.sm),
+            ),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                _savePath();
+              },
             ),
           ),
         );
@@ -437,18 +452,24 @@ class _SkillChip extends StatelessWidget {
 
   IconData get _icon {
     final name = skill.name.toLowerCase();
-    if (name.contains('figma') || name.contains('design'))
+    if (name.contains('figma') || name.contains('design')) {
       return Icons.brush_rounded;
-    if (name.contains('research') || name.contains('user'))
+    }
+    if (name.contains('research') || name.contains('user')) {
       return Icons.search_rounded;
-    if (name.contains('wire') || name.contains('layer'))
+    }
+    if (name.contains('wire') || name.contains('layer')) {
       return Icons.layers_rounded;
-    if (name.contains('python') || name.contains('code'))
+    }
+    if (name.contains('python') || name.contains('code')) {
       return Icons.code_rounded;
-    if (name.contains('data') || name.contains('stat'))
+    }
+    if (name.contains('data') || name.contains('stat')) {
       return Icons.bar_chart_rounded;
-    if (name.contains('agile') || name.contains('scrum'))
+    }
+    if (name.contains('agile') || name.contains('scrum')) {
       return Icons.loop_rounded;
+    }
     if (name.contains('strategy')) return Icons.lightbulb_rounded;
     return Icons.star_rounded;
   }
