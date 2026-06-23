@@ -89,8 +89,9 @@ serve(async (req) => {
 
 // deno-lint-ignore no-explicit-any
 async function generateWithOpenAI(profile: any, quiz: any) {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!openaiKey) throw new Error("OpenAI key not configured");
+  // Using Groq free tier instead of OpenAI
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+  if (!apiKey) throw new Error("Groq key not configured");
 
   const systemPrompt = `You are a warm, encouraging career guidance counsellor for students.
 Return ONLY valid JSON. No prose, no markdown fences, no explanation before or after the JSON.
@@ -132,33 +133,36 @@ Return this exact JSON structure:
 }
 
 Rules:
-- fitScore between 60-95 (realistic — not 100%)
+- fitScore between 60-95
 - 2-4 requiredSkills per career
 - Exactly 3 roadmap steps per career
 - matchReason must reference the student's specific interests/values/strengths
 - Avoid clichés like "follow your passion"
 - Be realistic and encouraging, not corporate`;
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      max_tokens: 2000,
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  });
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 2000,
+        temperature: 0.7,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    }
+  );
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`OpenAI ${response.status}: ${err}`);
+    throw new Error(`Groq ${response.status}: ${err}`);
   }
 
   const data = await response.json();
@@ -170,6 +174,7 @@ Rules:
   const parsed = JSON.parse(cleaned);
   return parsed.matches;
 }
+
 
 function getFallbackMatches() {
   return [
