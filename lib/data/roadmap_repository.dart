@@ -3,31 +3,24 @@ import '../core/supabase_client.dart';
 import '../models/career_match.dart';
 
 class RoadmapRepository {
-  /// Returns cached matches if they exist, otherwise generates new ones.
   Future<List<CareerMatch>> getOrGenerate() async {
     if (!AppConfig.isConfigured) return _fallback();
-
     final existing = await getMyMatches();
     if (existing.isNotEmpty) return existing;
-
     return generate();
   }
 
-  /// Always calls the Edge Function and writes fresh matches to DB.
   Future<List<CareerMatch>> generate() async {
     if (!AppConfig.isConfigured) return _fallback();
-
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return _fallback();
 
-    // Fetch profile
     final profileData = await supabase
         .from('profiles')
         .select()
         .eq('id', userId)
         .maybeSingle();
 
-    // Fetch latest quiz response
     final quizData = await supabase
         .from('quiz_responses')
         .select()
@@ -58,15 +51,13 @@ class RoadmapRepository {
         'generate-roadmap',
         body: {'profile': profile, 'quiz': quiz},
       );
-
-      if (response.data == null) throw Exception('Empty response from AI');
-
+      if (response.data == null) throw Exception('Empty response');
       final data = response.data as Map<String, dynamic>;
       final matchesJson = data['matches'] as List<dynamic>;
       return matchesJson
           .map((e) => CareerMatch.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (e) {
+    } catch (_) {
       return _fallback();
     }
   }
@@ -75,16 +66,37 @@ class RoadmapRepository {
     if (!AppConfig.isConfigured) return [];
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return [];
-
     final data = await supabase
         .from('career_matches')
         .select()
         .eq('user_id', userId)
         .order('fit_score', ascending: false);
-
     return (data as List<dynamic>)
         .map((e) => CareerMatch.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Fetch a single match by ID from Supabase
+  Future<CareerMatch?> getMatch(String matchId) async {
+    if (!AppConfig.isConfigured) return null;
+    if (matchId.startsWith('fallback-')) return null;
+    final data = await supabase
+        .from('career_matches')
+        .select()
+        .eq('id', matchId)
+        .maybeSingle();
+    if (data == null) return null;
+    return CareerMatch.fromJson(data);
+  }
+
+  /// Mark a career as saved
+  Future<void> saveMatch(String matchId) async {
+    if (!AppConfig.isConfigured) return;
+    if (matchId.startsWith('fallback-')) return;
+    await supabase
+        .from('career_matches')
+        .update({'is_saved': true})
+        .eq('id', matchId);
   }
 
   String? _extractWorkStyle(Map<String, dynamic> answers) {
@@ -114,25 +126,28 @@ class RoadmapRepository {
       requiredSkills: [
         SkillTag(name: 'UI Design', level: 'beginner'),
         SkillTag(name: 'User Research', level: 'beginner'),
+        SkillTag(name: 'Wireframing', level: 'beginner'),
       ],
       outlook:
           'Strong global demand with remote-friendly roles across tech, fintech, and health sectors.',
       roadmap: [
         RoadmapStep(
           order: 1,
-          title: 'Learn the basics',
-          detail: "Complete Google's free UX Certificate on Coursera.",
+          title: 'Foundations of Design',
+          detail:
+              "Complete Google's free UX Certificate on Coursera. Focus on color theory, typography, and layout.",
         ),
         RoadmapStep(
           order: 2,
-          title: 'Build a portfolio piece',
-          detail: 'Redesign an app you use and document your process.',
+          title: 'Learn the Tools',
+          detail:
+              'Get comfortable with Figma — it is the industry standard. Build a small component library as practice.',
         ),
         RoadmapStep(
           order: 3,
-          title: 'Get real experience',
+          title: 'Build Your Portfolio',
           detail:
-              'Apply for internships or help a local business with their site.',
+              'Redesign an app you use daily and document your process. This becomes your first case study.',
         ),
       ],
       source: 'fallback',
@@ -141,31 +156,35 @@ class RoadmapRepository {
       id: 'fallback-2',
       title: 'Data Scientist',
       summary:
-          'Data Scientists find meaningful patterns in large datasets to help organisations make smarter decisions.',
+          'Data Scientists find meaningful patterns in large datasets to help organisations decide smarter.',
       matchReason:
           'Your analytical strengths and love of learning translate directly into data science.',
       fitScore: 75,
       requiredSkills: [
         SkillTag(name: 'Python', level: 'beginner'),
-        SkillTag(name: 'Stats', level: 'beginner'),
+        SkillTag(name: 'Statistics', level: 'beginner'),
+        SkillTag(name: 'Data Analysis', level: 'beginner'),
       ],
       outlook:
-          "One of the fastest-growing roles globally — every industry needs people who can make sense of data.",
+          'One of the fastest-growing roles globally — every industry needs people who make sense of data.',
       roadmap: [
         RoadmapStep(
           order: 1,
           title: 'Start with Python',
-          detail: 'Complete Python for Everybody on Coursera.',
+          detail:
+              'Complete Python for Everybody on Coursera. Focus on data types, loops, and functions.',
         ),
         RoadmapStep(
           order: 2,
-          title: 'Learn data tools',
-          detail: "Pick up pandas and matplotlib on Kaggle's free courses.",
+          title: 'Learn Data Tools',
+          detail:
+              "Pick up pandas and matplotlib on Kaggle's free courses. Work with real datasets from day one.",
         ),
         RoadmapStep(
           order: 3,
-          title: 'Complete a project',
-          detail: 'Analyse a public dataset and publish it on GitHub.',
+          title: 'Ship a Project',
+          detail:
+              'Analyse a public dataset on something you care about and publish it on GitHub. That is your portfolio.',
         ),
       ],
       source: 'fallback',
@@ -187,18 +206,21 @@ class RoadmapRepository {
       roadmap: [
         RoadmapStep(
           order: 1,
-          title: 'Read the fundamentals',
-          detail: "Start with 'Inspired' by Marty Cagan.",
+          title: 'Read the Fundamentals',
+          detail:
+              "Start with 'Inspired' by Marty Cagan. It gives you the mental models every PM needs.",
         ),
         RoadmapStep(
           order: 2,
-          title: 'Get exposure',
-          detail: 'Join a student startup or hackathon in a coordination role.',
+          title: 'Get Real Exposure',
+          detail:
+              'Join a student startup or hackathon in a coordination role. Real exposure beats theory every time.',
         ),
         RoadmapStep(
           order: 3,
-          title: 'Document your thinking',
-          detail: 'Write product teardowns and publish them online.',
+          title: 'Document Your Thinking',
+          detail:
+              'Write product teardowns of apps you love and publish them online. This is your proof of thinking.',
         ),
       ],
       source: 'fallback',

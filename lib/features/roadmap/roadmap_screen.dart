@@ -521,10 +521,11 @@ class _CareerCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
 
               // EXPLORE button — flat (no shadow, contrasts with card shadow)
+
+              // Inside _CareerCard build(), update the EXPLORE ElevatedButton:
               ElevatedButton(
-                onPressed: () {
-                  // Phase 5: navigate to career detail screen
-                },
+                onPressed: () =>
+                    context.go('/career/${match.id}', extra: match),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.anchor,
                   foregroundColor: Colors.white,
