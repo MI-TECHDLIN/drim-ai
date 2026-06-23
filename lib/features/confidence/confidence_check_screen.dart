@@ -11,7 +11,7 @@ import '../../widgets/drim_logo.dart';
 import 'widgets/confidence_meter.dart';
 
 class ConfidenceCheckScreen extends ConsumerStatefulWidget {
-  final String phase; // 'pre' | 'post'
+  final String phase;
 
   const ConfidenceCheckScreen({super.key, required this.phase});
 
@@ -21,10 +21,17 @@ class ConfidenceCheckScreen extends ConsumerStatefulWidget {
 }
 
 class _ConfidenceCheckScreenState extends ConsumerState<ConfidenceCheckScreen> {
-  int _value = 5;
+  // Post-check starts at 7 to feel more confident by default
+  late int _value;
   bool _isLoading = false;
 
   bool get _isPre => widget.phase == 'pre';
+
+  @override
+  void initState() {
+    super.initState();
+    _value = _isPre ? 5 : 7;
+  }
 
   String get _headline =>
       _isPre ? 'HOW SURE\nARE YOU?' : 'HOW DO YOU\nFEEL NOW?';
@@ -35,17 +42,17 @@ class _ConfidenceCheckScreenState extends ConsumerState<ConfidenceCheckScreen> {
 
   Future<void> _submit() async {
     setState(() => _isLoading = true);
-
     try {
       await ref
           .read(profileRepositoryProvider)
           .saveConfidenceScore(phase: widget.phase, score: _value);
     } catch (_) {
-      // Non-blocking — continue the journey even if save fails
+      // Non-blocking — continue even if save fails
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        context.go(_isPre ? '/quiz' : '/home');
+        // Pre → quiz | Post → delta result screen
+        context.go(_isPre ? '/quiz' : '/confidence-delta');
       }
     }
   }
@@ -81,7 +88,6 @@ class _ConfidenceCheckScreenState extends ConsumerState<ConfidenceCheckScreen> {
 
               const SizedBox(height: AppSpacing.sm),
 
-              // ── Subtext ───────────────────────────────────────────────
               Text(
                 _subtext,
                 style: GoogleFonts.inter(
@@ -96,12 +102,13 @@ class _ConfidenceCheckScreenState extends ConsumerState<ConfidenceCheckScreen> {
               // ── Confidence meter (signature element) ──────────────────
               ConfidenceMeter(
                 value: _value,
+                isPost: !_isPre,
                 onChanged: (v) => setState(() => _value = v),
               ),
 
               const Spacer(),
 
-              // ── CTA button ────────────────────────────────────────────
+              // ── CTA ───────────────────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppRadii.md),
