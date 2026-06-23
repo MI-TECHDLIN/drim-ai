@@ -7,13 +7,11 @@ class ProfileRepository {
     if (!AppConfig.isConfigured) return null;
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return null;
-
     final data = await supabase
         .from('profiles')
         .select()
         .eq('id', userId)
         .maybeSingle();
-
     if (data == null) return null;
     return Profile.fromJson(data);
   }
@@ -24,16 +22,16 @@ class ProfileRepository {
     required String educationStage,
   }) async {
     final userId = supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
-
-    // upsert handles both insert (no row yet) and update (row exists)
-    await supabase.from('profiles').upsert({
-      'id': userId,
-      'display_name': displayName,
-      'age_band': ageBand,
-      'education_stage': educationStage,
-      'updated_at': DateTime.now().toIso8601String(),
-    });
+    if (userId == null) return;
+    await supabase
+        .from('profiles')
+        .update({
+          'display_name': displayName,
+          'age_band': ageBand,
+          'education_stage': educationStage,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId);
   }
 
   Future<void> saveConfidenceScore({
@@ -41,8 +39,7 @@ class ProfileRepository {
     required int score,
   }) async {
     final userId = supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
-
+    if (userId == null) return;
     await supabase.from('confidence_scores').insert({
       'user_id': userId,
       'phase': phase,

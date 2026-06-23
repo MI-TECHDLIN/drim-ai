@@ -36,7 +36,6 @@ class RoadmapRepository {
     };
 
     final answers = (quizData?['answers'] as Map<String, dynamic>?) ?? {};
-
     final quiz = {
       'interests': quizData?['interests'] ?? [],
       'values': quizData?['values'] ?? [],
@@ -76,7 +75,6 @@ class RoadmapRepository {
         .toList();
   }
 
-  /// Fetch a single match by ID from Supabase
   Future<CareerMatch?> getMatch(String matchId) async {
     if (!AppConfig.isConfigured) return null;
     if (matchId.startsWith('fallback-')) return null;
@@ -89,27 +87,56 @@ class RoadmapRepository {
     return CareerMatch.fromJson(data);
   }
 
-  /// Mark a career as saved
+  // ── NEW ────────────────────────────────────────────────────────────────
+  Future<CareerMatch?> getSavedMatch() async {
+    if (!AppConfig.isConfigured) return null;
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return null;
+    final data = await supabase
+        .from('career_matches')
+        .select()
+        .eq('user_id', userId)
+        .eq('is_saved', true)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (data == null) return null;
+    return CareerMatch.fromJson(data);
+  }
+
   Future<void> saveMatch(String matchId) async {
     if (!AppConfig.isConfigured) return;
     if (matchId.startsWith('fallback-')) return;
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    // Unsave any previously saved path for this user before marking the new one.
     await supabase
         .from('career_matches')
-        .update({'is_saved': true})
+        .update({'is_saved': false})
+        .eq('user_id', userId);
+
+    await supabase
+        .from('career_matches')
+        .update({
+          'is_saved': true,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
         .eq('id', matchId);
   }
 
   String? _extractWorkStyle(Map<String, dynamic> answers) {
     final q4 = answers['q4'];
-    if (q4 is List && q4.isNotEmpty)
-      return (q4 as List).cast<String>().join(', ');
+    if (q4 is List && q4.isNotEmpty) {
+      return (q4).cast<String>().join(', ');
+    }
     if (q4 is String && q4.isNotEmpty) return q4;
     return null;
   }
 
   List<String> _extractVision(Map<String, dynamic> answers) {
     final q8 = answers['q8'];
-    if (q8 is List) return (q8 as List).cast<String>();
+    if (q8 is List) return (q8).cast<String>();
     if (q8 is String && q8.isNotEmpty) return [q8];
     return [];
   }
@@ -129,25 +156,22 @@ class RoadmapRepository {
         SkillTag(name: 'Wireframing', level: 'beginner'),
       ],
       outlook:
-          'Strong global demand with remote-friendly roles across tech, fintech, and health sectors.',
+          'Strong global demand with remote-friendly roles across tech, fintech, and health.',
       roadmap: [
         RoadmapStep(
           order: 1,
           title: 'Foundations of Design',
-          detail:
-              "Complete Google's free UX Certificate on Coursera. Focus on color theory, typography, and layout.",
+          detail: "Complete Google's free UX Certificate on Coursera.",
         ),
         RoadmapStep(
           order: 2,
           title: 'Learn the Tools',
-          detail:
-              'Get comfortable with Figma — it is the industry standard. Build a small component library as practice.',
+          detail: 'Get comfortable with Figma — the industry standard.',
         ),
         RoadmapStep(
           order: 3,
           title: 'Build Your Portfolio',
-          detail:
-              'Redesign an app you use daily and document your process. This becomes your first case study.',
+          detail: 'Redesign an app you use and document your process.',
         ),
       ],
       source: 'fallback',
@@ -165,26 +189,22 @@ class RoadmapRepository {
         SkillTag(name: 'Statistics', level: 'beginner'),
         SkillTag(name: 'Data Analysis', level: 'beginner'),
       ],
-      outlook:
-          'One of the fastest-growing roles globally — every industry needs people who make sense of data.',
+      outlook: 'One of the fastest-growing roles globally.',
       roadmap: [
         RoadmapStep(
           order: 1,
           title: 'Start with Python',
-          detail:
-              'Complete Python for Everybody on Coursera. Focus on data types, loops, and functions.',
+          detail: 'Complete Python for Everybody on Coursera.',
         ),
         RoadmapStep(
           order: 2,
           title: 'Learn Data Tools',
-          detail:
-              "Pick up pandas and matplotlib on Kaggle's free courses. Work with real datasets from day one.",
+          detail: "Pick up pandas and matplotlib on Kaggle's free courses.",
         ),
         RoadmapStep(
           order: 3,
           title: 'Ship a Project',
-          detail:
-              'Analyse a public dataset on something you care about and publish it on GitHub. That is your portfolio.',
+          detail: 'Analyse a public dataset and publish it on GitHub.',
         ),
       ],
       source: 'fallback',
@@ -201,26 +221,22 @@ class RoadmapRepository {
         SkillTag(name: 'Strategy', level: 'intermediate'),
         SkillTag(name: 'Agile', level: 'beginner'),
       ],
-      outlook:
-          'Highly valued in tech and startups, but typically needs 1-2 years of adjacent experience first.',
+      outlook: 'Highly valued in tech and startups.',
       roadmap: [
         RoadmapStep(
           order: 1,
           title: 'Read the Fundamentals',
-          detail:
-              "Start with 'Inspired' by Marty Cagan. It gives you the mental models every PM needs.",
+          detail: "Start with 'Inspired' by Marty Cagan.",
         ),
         RoadmapStep(
           order: 2,
           title: 'Get Real Exposure',
-          detail:
-              'Join a student startup or hackathon in a coordination role. Real exposure beats theory every time.',
+          detail: 'Join a student startup or hackathon in a coordination role.',
         ),
         RoadmapStep(
           order: 3,
           title: 'Document Your Thinking',
-          detail:
-              'Write product teardowns of apps you love and publish them online. This is your proof of thinking.',
+          detail: 'Write product teardowns and publish them online.',
         ),
       ],
       source: 'fallback',
