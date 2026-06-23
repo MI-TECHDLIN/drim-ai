@@ -1,10 +1,11 @@
+import 'package:drim_ai/widgets/drim_states.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/dashboard_data.dart';
 import '../../models/skill_progress.dart';
-import 'package:drim_ai/state/providers.dart' as providers;
+import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
@@ -15,8 +16,8 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(providers.myProfileProvider);
-    final dashboardAsync = ref.watch(providers.dashboardProvider);
+    final profileAsync = ref.watch(myProfileProvider);
+    final dashboardAsync = ref.watch(dashboardProvider);
 
     return Scaffold(
       backgroundColor: AppColors.sand,
@@ -67,21 +68,27 @@ class HomeScreen extends ConsumerWidget {
                             );
                           },
                           loading: () => const SizedBox(height: 60),
-                          error: (_, __) => const SizedBox(height: 60),
+                          error: (_, _) => const SizedBox(height: 60),
                         ),
 
                         const SizedBox(height: AppSpacing.xl),
 
                         // ── Dashboard cards ────────────────────────────
+                        // Inside HomeScreen.build(), update dashboardAsync.when:
                         dashboardAsync.when(
                           data: (data) => _DashboardCards(
                             data: data,
-                            onRefresh: () =>
-                                ref.invalidate(providers.dashboardProvider),
+                            onRefresh: () => ref.invalidate(dashboardProvider),
                           ),
                           loading: () => const _LoadingCards(),
-                          error: (_, __) =>
-                              _EmptyState(onStart: () => context.go('/quiz')),
+                          error: (error, _) => DrimErrorState(
+                            title: 'Couldn\'t load your dashboard',
+                            body:
+                                'Something went wrong fetching your progress. '
+                                'Tap retry — your data is still safe.',
+                            buttonLabel: 'RETRY',
+                            onRetry: () => ref.invalidate(dashboardProvider),
+                          ),
                         ),
 
                         const SizedBox(height: AppSpacing.xxl),
@@ -247,7 +254,7 @@ class _YourPathCard extends StatelessWidget {
                 tween: Tween(begin: 0.0, end: data.skillProgress),
                 duration: const Duration(milliseconds: 600),
                 curve: Curves.easeOut,
-                builder: (_, val, __) => LinearProgressIndicator(
+                builder: (_, val, _) => LinearProgressIndicator(
                   value: val,
                   backgroundColor: Colors.transparent,
                   valueColor: const AlwaysStoppedAnimation<Color>(
@@ -441,7 +448,7 @@ class _ConfidenceCard extends StatelessWidget {
               tween: Tween(begin: 0.0, end: (post ?? pre) / 10.0),
               duration: const Duration(milliseconds: 700),
               curve: Curves.easeOut,
-              builder: (_, val, __) => LinearProgressIndicator(
+              builder: (_, val, _) => LinearProgressIndicator(
                 value: val,
                 backgroundColor: Colors.transparent,
                 valueColor: const AlwaysStoppedAnimation<Color>(AppColors.sage),
