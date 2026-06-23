@@ -1,3 +1,5 @@
+import 'package:drim_ai/widgets/drim_states.dart';
+import 'package:drim_ai/widgets/skeletons/career_detail_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -115,12 +117,7 @@ class _CareerDetailScreenState extends ConsumerState<CareerDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.sand,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.anchor,
-                strokeWidth: 2,
-              ),
-            )
+          ? const Center(child: CareerDetailSkeleton())
           : _match == null
           ? _ErrorBody(
               onBack: () => GoRouter.of(context).canPop()
@@ -411,13 +408,13 @@ class _ErrorBody extends StatelessWidget {
           children: [
             _SquareIconButton(icon: Icons.arrow_back_rounded, onTap: onBack),
             const SizedBox(height: AppSpacing.xl),
-            Text(
-              'Could not load this career.',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
+            DrimErrorState(
+              title: 'Couldn\'t load this career',
+              body:
+                  'We lost the details for this path. '
+                  'Go back and try opening it again.',
+              buttonLabel: 'GO BACK',
+              onRetry: onBack,
             ),
           ],
         ),

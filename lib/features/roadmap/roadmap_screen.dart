@@ -9,6 +9,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/drim_states.dart';
+import '../../widgets/skeletons/roadmap_skeleton.dart';
 
 class RoadmapScreen extends ConsumerStatefulWidget {
   const RoadmapScreen({super.key});
@@ -97,6 +98,7 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen>
               : _ResultsBody(
                   key: const ValueKey('results'),
                   matches: _matches ?? [],
+                  showSkeleton: _matches == null || (_matches?.isEmpty ?? true),
                   onSave: () => context.go('/home'),
                 ),
         ),
@@ -308,9 +310,15 @@ class _DecoSquare extends StatelessWidget {
 
 class _ResultsBody extends StatelessWidget {
   final List<CareerMatch> matches;
+  final bool showSkeleton;
   final VoidCallback onSave;
 
-  const _ResultsBody({super.key, required this.matches, required this.onSave});
+  const _ResultsBody({
+    super.key,
+    required this.matches,
+    required this.showSkeleton,
+    required this.onSave,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -319,60 +327,66 @@ class _ResultsBody extends StatelessWidget {
         Expanded(
           child: SafeArea(
             bottom: false,
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    0,
+            child: showSkeleton
+                ? const RoadmapSkeleton()
+                : CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          0,
+                        ),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            // Heading
+                            Text(
+                              'YOUR PATHS',
+                              style: GoogleFonts.poppins(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.anchor,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              'Based on who you actually are.',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+
+                            // Check if any match has source: 'fallback'
+                            if (matches.any((m) => m.source == 'fallback'))
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: AppSpacing.md,
+                                ),
+                                child: DrimFallbackBanner(
+                                  message:
+                                      'AI service unavailable — showing curated example paths.',
+                                ),
+                              ),
+
+                            // Career cards
+                            ...matches.map(
+                              (match) => Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: AppSpacing.lg,
+                                ),
+                                child: _CareerCard(match: match),
+                              ),
+                            ),
+
+                            const SizedBox(height: AppSpacing.sm),
+                          ]),
+                        ),
+                      ),
+                    ],
                   ),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      // Heading
-                      Text(
-                        'YOUR PATHS',
-                        style: GoogleFonts.poppins(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.anchor,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Based on who you actually are.',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: AppColors.muted,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Check if any match has source: 'fallback'
-                      if (matches.any((m) => m.source == 'fallback'))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: DrimFallbackBanner(
-                            message:
-                                'AI service unavailable — showing curated example paths.',
-                          ),
-                        ),
-
-                      // Career cards
-                      ...matches.map(
-                        (match) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                          child: _CareerCard(match: match),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppSpacing.sm),
-                    ]),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
 
