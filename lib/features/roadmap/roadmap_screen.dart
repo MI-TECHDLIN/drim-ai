@@ -8,6 +8,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
+import '../../widgets/drim_states.dart';
 
 class RoadmapScreen extends ConsumerStatefulWidget {
   const RoadmapScreen({super.key});
@@ -21,7 +22,7 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen>
   List<CareerMatch>? _matches;
   bool _isLoading = true;
   int _messageIndex = 0;
-
+  bool _hasError = false;
   static const _messages = [
     'Matching your answers to real career paths...',
     'Finding your best matches...',
@@ -50,17 +51,24 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen>
     }
   }
 
+  // Inside _RoadmapScreenState, replace _load():
   Future<void> _load() async {
     try {
       final matches = await ref.read(roadmapRepositoryProvider).getOrGenerate();
       if (mounted) {
         setState(() {
           _matches = matches;
+          _hasError = false;
           _isLoading = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -341,6 +349,16 @@ class _ResultsBody extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xl),
 
+                      // Check if any match has source: 'fallback'
+                      if (matches.any((m) => m.source == 'fallback'))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          child: DrimFallbackBanner(
+                            message:
+                                'AI service unavailable — showing curated example paths.',
+                          ),
+                        ),
+
                       // Career cards
                       ...matches.map(
                         (match) => Padding(
@@ -550,6 +568,34 @@ class _CareerCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ErrorBody extends StatelessWidget {
+  const _ErrorBody({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSpacing.lg),
+            DrimErrorState(
+              title: 'Couldn\'t build your roadmap',
+              body:
+                  'The AI service is taking a break. '
+                  'Tap below to see example career paths instead — '
+                  'they\'re still useful.',
+              buttonLabel: 'SEE EXAMPLE PATHS',
+              onRetry: () => context.go('/roadmap'),
+            ),
+          ],
+        ),
       ),
     );
   }
