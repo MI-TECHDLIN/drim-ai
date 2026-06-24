@@ -1,3 +1,4 @@
+import 'package:drim_ai/features/onboarding/onboarding_carousel_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -53,7 +54,8 @@ final appRouter = GoRouter(
     if (isSplash) return null;
     final session = Supabase.instance.client.auth.currentSession;
     final isAuth = state.matchedLocation == '/auth';
-    if (session == null && !isAuth) return '/auth';
+    final isOnboardingIntro = state.matchedLocation == '/onboarding-intro';
+    if (session == null && !isAuth && !isOnboardingIntro) return '/auth';
     if (session != null && isAuth) return '/home';
     return null;
   },
@@ -65,6 +67,11 @@ final appRouter = GoRouter(
       path: '/confidence-pre',
       builder: (_, __) => const ConfidenceCheckScreen(phase: 'pre'),
     ),
+    GoRoute(
+      path: '/onboarding-intro',
+      builder: (_, __) => const OnboardingCarouselScreen(),
+    ),
+
     GoRoute(
       path: '/confidence-post',
       builder: (_, __) => const ConfidenceCheckScreen(phase: 'post'),

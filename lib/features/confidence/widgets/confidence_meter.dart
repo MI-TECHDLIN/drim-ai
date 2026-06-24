@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_radii.dart';
@@ -11,7 +11,7 @@ class ConfidenceMeter extends StatelessWidget {
 
   const ConfidenceMeter({
     super.key,
-    required this.value,
+    this.value = 5,
     required this.onChanged,
     this.isPost = false,
   });
@@ -35,8 +35,9 @@ class ConfidenceMeter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // ── Large number ─────────────────────────────────────────────
         Text(
-          '\$value',
+          '${this.value}',
           style: GoogleFonts.poppins(
             fontSize: 96,
             fontWeight: FontWeight.w800,
@@ -47,6 +48,7 @@ class ConfidenceMeter extends StatelessWidget {
 
         const SizedBox(height: AppSpacing.sm),
 
+        // ── Confidence label ──────────────────────────────────────────
         Text(
           _label,
           style: GoogleFonts.inter(
@@ -59,6 +61,7 @@ class ConfidenceMeter extends StatelessWidget {
 
         const SizedBox(height: AppSpacing.xl),
 
+        // ── Slider with bordered track ────────────────────────────────
         SizedBox(
           height: 48,
           child: Stack(
@@ -87,7 +90,9 @@ class ConfidenceMeter extends StatelessWidget {
                     pressedElevation: 0,
                   ),
                   overlayColor: AppColors.anchor.withOpacity(0.12),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
+                  overlayShape: const RoundSliderOverlayShape(
+                    overlayRadius: 22,
+                  ),
                   trackShape: const RoundedRectSliderTrackShape(),
                 ),
                 child: Slider(
@@ -104,6 +109,7 @@ class ConfidenceMeter extends StatelessWidget {
 
         const SizedBox(height: AppSpacing.md),
 
+        // ── Animated sage progress bar (signature element) ────────────
         Container(
           height: 14,
           clipBehavior: Clip.hardEdge,
