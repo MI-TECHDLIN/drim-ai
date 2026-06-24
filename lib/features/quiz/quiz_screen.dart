@@ -122,15 +122,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       body: Column(
         children: [
           // ── Full-width teal progress bar (edge to edge, above safe area) ──
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: progress),
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOut,
-            builder: (context, val, _) => LinearProgressIndicator(
-              value: val,
-              backgroundColor: AppColors.line,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.anchor),
-              minHeight: 7,
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xxl),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: progress),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOut,
+              builder: (context, val, _) => LinearProgressIndicator(
+                value: val,
+                backgroundColor: AppColors.line,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.anchor,
+                ),
+                minHeight: 8,
+              ),
             ),
           ),
 
