@@ -1,3 +1,6 @@
+import 'package:drim_ai/models/celebration_data.dart';
+import 'package:drim_ai/widgets/drim_states.dart';
+import 'package:drim_ai/widgets/skeletons/skills_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +12,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
-import '../career_detail/career_detail_screen.dart';
 
 class SkillsTrackerScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -28,8 +30,8 @@ class SkillsTrackerScreen extends ConsumerStatefulWidget {
 
 class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
   List<SkillProgress>? _skills;
+  bool _hasError = false;
   bool _isLoading = true;
-  final bool _isFallback = false;
 
   @override
   void initState() {
@@ -38,9 +40,12 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
   }
 
   Future<void> _loadSkills() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
     try {
       if (widget.matchId.startsWith('fallback-')) {
-        // Use initialMatch's requiredSkills as local state
         final skills =
             widget.initialMatch?.requiredSkills
                 .map((s) => SkillProgress.local(s.name))
@@ -64,29 +69,87 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
         }
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _cycleStatus(SkillProgress skill) async {
     final next = skill.nextStatus;
-    final oldStatus = skill.status;
+    final isDone = next == 'done';
 
     setState(() => skill.status = next);
+    ref.invalidate(dashboardProvider);
 
     if (!skill.id.startsWith('local_')) {
       try {
-        final updated = await ref
+        await ref
             .read(skillProgressRepositoryProvider)
             .updateStatus(skill.id, next);
-
-        if (updated != null && mounted) {
-          setState(() {
-            skill.status = updated.status;
-          });
-        }
       } catch (_) {
-        if (mounted) setState(() => skill.status = oldStatus);
+        if (mounted) setState(() => skill.status = skill.nextStatus);
+        return;
+      }
+    }
+
+    if (isDone) {
+      // Log activity
+      await ref
+          .read(activityRepositoryProvider)
+          .logActivity(activityType: 'skill_done', intensity: 2);
+
+      // Check badges
+      final doneCount = (_skills ?? []).where((s) => s.status == 'done').length;
+      final streak = await ref
+          .read(activityRepositoryProvider)
+          .getCurrentStreak();
+
+      final newBadge = await ref
+          .read(badgeRepositoryProvider)
+          .checkAndAwardBadges(skillsDoneCount: doneCount, streakDays: streak);
+
+      ref.invalidate(activityMapProvider);
+      ref.invalidate(streakDataProvider);
+      ref.invalidate(userBadgesProvider);
+
+      if (!mounted) return;
+
+      // Check if streak milestone hit
+      final isStreakMilestone = streak == 7 || streak == 14 || streak == 30;
+
+      if (isStreakMilestone) {
+        final bestStreak = await ref
+            .read(activityRepositoryProvider)
+            .getBestStreak();
+        final thisMonth = await ref
+            .read(activityRepositoryProvider)
+            .getThisMonthCount();
+
+        if (!mounted) return;
+
+        context.push(
+          '/celebration/streak',
+          extra: StreakCelebrationData(
+            currentStreak: streak,
+            bestStreak: bestStreak,
+            thisMonth: thisMonth,
+            newBadgeId: newBadge,
+          ),
+        );
+      } else {
+        context.push(
+          '/celebration/skill',
+          extra: SkillCelebrationData(
+            skillName: skill.skillName,
+            category: widget.initialMatch?.title ?? 'Career Skill',
+            xpEarned: 50,
+            newBadgeId: newBadge,
+          ),
+        );
       }
     }
   }
@@ -99,51 +162,20 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
     return _doneCount / total;
   }
 
-  // 12-week × 7-day mock heatmap (fixed, looks realistic for demo)
-  static const _heatmapData = [
-    [0, 0, 1, 0, 0, 0, 1],
-    [0, 1, 0, 1, 0, 0, 0],
-    [1, 0, 2, 0, 1, 0, 0],
-    [0, 2, 1, 0, 2, 0, 1],
-    [1, 1, 2, 1, 1, 0, 0],
-    [2, 1, 3, 2, 1, 1, 0],
-    [1, 2, 2, 3, 2, 0, 1],
-    [2, 3, 3, 2, 3, 1, 0],
-    [3, 2, 4, 3, 2, 1, 1],
-    [3, 4, 3, 4, 3, 2, 0],
-    [4, 3, 4, 3, 4, 2, 1],
-    [3, 4, 3, 4, 3, 1, 0],
-  ];
-
-  Color _heatColor(int level) {
-    switch (level) {
-      case 0:
-        return AppColors.line;
-      case 1:
-        return AppColors.sage.withOpacity(0.25);
-      case 2:
-        return AppColors.sage.withOpacity(0.55);
-      case 3:
-        return AppColors.sage;
-      default:
-        return AppColors.anchor.withOpacity(0.75);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final skills = _skills ?? [];
-    final title = widget.initialMatch?.title ?? 'Career';
 
     return Scaffold(
       backgroundColor: AppColors.sand,
       body: SafeArea(
         child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.anchor,
-                  strokeWidth: 2,
+            ? const SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.lg,
                 ),
+                child: SkillsSkeleton(),
               )
             : CustomScrollView(
                 slivers: [
@@ -155,7 +187,6 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                       delegate: SliverChildListDelegate([
                         const SizedBox(height: AppSpacing.lg),
 
-                        // ── Header row ─────────────────────────────
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -167,7 +198,9 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                             ),
                             _SquareIconButton(
                               icon: Icons.more_horiz_rounded,
-                              onTap: () {},
+                              onTap: () => GoRouter.of(context).canPop()
+                                  ? context.pop()
+                                  : context.go('/home'),
                             ),
                           ],
                         ),
@@ -175,7 +208,7 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                         const SizedBox(height: AppSpacing.lg),
 
                         Text(
-                          'SKILLS TRACKER',
+                          'SKILLS',
                           style: GoogleFonts.poppins(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
@@ -185,7 +218,6 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
 
                         const SizedBox(height: AppSpacing.xl),
 
-                        // ── Course progress ────────────────────────
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -237,7 +269,6 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
 
                         const SizedBox(height: AppSpacing.xl),
 
-                        // ── Skill streak heatmap ───────────────────
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.md),
                           decoration: BoxDecoration(
@@ -252,184 +283,45 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'SKILL STREAK',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.ink,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      const Text(
-                                        '🔥',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '12 DAY STREAK',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.apricot,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                              Text(
+                                'COURSES TO LEARN',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
-
-                              const SizedBox(height: AppSpacing.md),
-
-                              // Heatmap grid
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Day labels
-                                  Column(
-                                    children:
-                                        ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-                                            .map(
-                                              (d) => SizedBox(
-                                                height: 14,
-                                                width: 14,
-                                                child: Text(
-                                                  d,
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 9,
-                                                    color: AppColors.muted,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                            )
-                                            .toList(),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-
-                                  // Grid
-                                  Expanded(
-                                    child: Column(
-                                      children: List.generate(7, (dayIndex) {
-                                        return Row(
-                                          children: List.generate(
-                                            _heatmapData.length,
-                                            (weekIndex) {
-                                              final level =
-                                                  _heatmapData[weekIndex][dayIndex];
-                                              return Expanded(
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    1.5,
-                                                  ),
-                                                  child: Container(
-                                                    height: 11,
-                                                    decoration: BoxDecoration(
-                                                      color: _heatColor(level),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            2,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        );
-                                      }),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
                               const SizedBox(height: AppSpacing.sm),
-
-                              // Legend
-                              Row(
-                                children: [
-                                  Text(
-                                    'LESS',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      color: AppColors.muted,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  ...List.generate(
-                                    5,
-                                    (i) => Container(
-                                      width: 10,
-                                      height: 10,
-                                      margin: const EdgeInsets.only(right: 3),
-                                      decoration: BoxDecoration(
-                                        color: _heatColor(i),
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'MORE',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      color: AppColors.muted,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              const Divider(
-                                color: AppColors.line,
-                                height: AppSpacing.xl,
-                                thickness: 1,
-                              ),
-
-                              // Stats row
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  _StatCell(
-                                    label: 'BEST STREAK',
-                                    value: '18 DAYS',
-                                  ),
-                                  _StatCell(
-                                    label: 'THIS MONTH',
-                                    value: '24 SESSIONS',
-                                  ),
-                                  _StatCell(
-                                    label: 'TOTAL TIME',
-                                    value: '156 HRS',
-                                  ),
-                                ],
+                              Text(
+                                'Pick up the next course and keep your learning momentum going.',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: AppColors.muted,
+                                  height: 1.4,
+                                ),
                               ),
                             ],
                           ),
                         ),
 
-                        const SizedBox(height: AppSpacing.xl),
+                        const SizedBox(height: AppSpacing.lg),
 
-                        // ── Skill rows ─────────────────────────────
-                        if (skills.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.md),
-                            child: Text(
-                              'No skills tracked yet.',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: AppColors.muted,
-                              ),
-                            ),
+                        if (_hasError)
+                          DrimErrorState(
+                            title: 'Couldn\'t load your skills',
+                            body: 'Tap retry to try again.',
+                            onRetry: _loadSkills,
+                          )
+                        else if (skills.isEmpty)
+                          DrimEmptyState(
+                            icon: Icons.school_rounded,
+                            title: 'No courses added yet',
+                            body:
+                                'Save a career path first — '
+                                'your course list will appear here.',
+                            buttonLabel: 'VIEW YOUR ROADMAP',
+                            onAction: () => context.go('/roadmap'),
                           )
                         else
                           ...skills.map(
@@ -437,7 +329,7 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                               padding: const EdgeInsets.only(
                                 bottom: AppSpacing.sm,
                               ),
-                              child: _SkillRow(
+                              child: _CourseCard(
                                 skill: skill,
                                 onTap: () => _cycleStatus(skill),
                               ),
@@ -457,42 +349,69 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
 
 // ── Skill row ──────────────────────────────────────────────────────────────
 
-class _SkillRow extends StatelessWidget {
+class _CourseCard extends StatelessWidget {
   final SkillProgress skill;
   final VoidCallback onTap;
 
-  const _SkillRow({required this.skill, required this.onTap});
+  const _CourseCard({required this.skill, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final isDone = skill.status == 'done';
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
-        ),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.surface,
           border: Border.all(color: AppColors.border, width: 2),
           borderRadius: BorderRadius.circular(AppRadii.md),
+          boxShadow: const [AppShadows.hardSm],
         ),
         child: Row(
           children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isDone ? AppColors.sage : AppColors.apricot,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                border: Border.all(color: AppColors.border, width: 1.5),
+              ),
+              child: Icon(
+                isDone
+                    ? Icons.check_rounded
+                    : Icons.play_circle_outline_rounded,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: Text(
-                skill.skillName,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: skill.status == 'done'
-                      ? AppColors.muted
-                      : AppColors.ink,
-                  decoration: skill.status == 'done'
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                  decorationColor: AppColors.muted,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    skill.skillName,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: isDone ? AppColors.muted : AppColors.ink,
+                      decoration: isDone
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor: AppColors.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isDone ? 'Completed course' : 'Continue this course',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
               ),
             ),
             _StatusBadge(status: skill.status),
@@ -563,39 +482,6 @@ class _StatusBadge extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatCell extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatCell({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            color: AppColors.muted,
-            letterSpacing: 0.6,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            color: AppColors.ink,
-          ),
-        ),
-      ],
     );
   }
 }

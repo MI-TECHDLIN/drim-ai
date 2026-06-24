@@ -39,8 +39,8 @@ class SkillsSkeleton extends StatelessWidget {
 
             const SizedBox(height: AppSpacing.lg),
 
-            // "SKILLS TRACKER" heading
-            const SkeletonBox(width: 200, height: 32, hasBorder: false),
+            // "SKILLS" heading
+            const SkeletonBox(width: 140, height: 32, hasBorder: false),
 
             const SizedBox(height: AppSpacing.xl),
 
@@ -57,63 +57,54 @@ class SkillsSkeleton extends StatelessWidget {
 
             const SizedBox(height: AppSpacing.xl),
 
-            // Heatmap card
+            // Courses to learn card
             SkeletonCard(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      SkeletonBox(width: 90, height: 12, hasBorder: false),
-                      SkeletonBox(width: 110, height: 12, hasBorder: false),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  // Grid skeleton (7 rows of 12 cols)
-                  ...List.generate(
-                    7,
-                    (_) => Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: Row(
-                        children: List.generate(
-                          12,
-                          (col) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(1.5),
-                              child: SkeletonBox(
-                                height: 11,
-                                borderRadius: 2,
-                                hasBorder: false,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  const SkeletonBox(width: 120, height: 12, hasBorder: false),
+                  const SizedBox(height: AppSpacing.sm),
+                  const SkeletonBox(width: 240, height: 12, hasBorder: false),
+                  const SizedBox(height: AppSpacing.xs),
+                  const SkeletonBox(width: 200, height: 12, hasBorder: false),
                 ],
               ),
             ),
 
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
 
-            // 6 skill row skeletons
+            // 4 course card skeletons
             ...List.generate(
-              6,
+              4,
               (i) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: SkeletonCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.md,
-                  ),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     children: [
+                      const SkeletonBox(
+                        width: 42,
+                        height: 42,
+                        borderRadius: 10,
+                        hasBorder: false,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
-                        child: SkeletonBox(
-                          width: 100 + (i % 3 * 40).toDouble(),
-                          height: 16,
-                          hasBorder: false,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SkeletonBox(
+                              width: 120 + (i % 3 * 40).toDouble(),
+                              height: 16,
+                              hasBorder: false,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            SkeletonBox(
+                              width: 90 + (i % 2 * 30).toDouble(),
+                              height: 12,
+                              hasBorder: false,
+                            ),
+                          ],
                         ),
                       ),
                       SkeletonPill(
