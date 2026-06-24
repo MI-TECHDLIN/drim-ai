@@ -51,7 +51,9 @@ class JobListingsScreen extends ConsumerWidget {
                             ),
                             _SquareIconButton(
                               icon: Icons.search_rounded,
-                              onTap: () {},
+                              onTap: () => GoRouter.of(context).canPop()
+                                  ? context.pop()
+                                  : context.go('/home'),
                             ),
                           ],
                         ),
@@ -87,7 +89,7 @@ class JobListingsScreen extends ConsumerWidget {
                                 icon: Icons.work_off_rounded,
                                 title: 'No listings found',
                                 body:
-                                    'We couldn\'t find live roles for ${careerTitle} right now. '
+                                    'We couldn\'t find live roles for $careerTitle right now. '
                                     'Try searching on LinkedIn or Glassdoor directly.',
                                 buttonLabel: 'BACK TO YOUR PATH',
                                 onAction: () => context.pop(),
@@ -99,7 +101,7 @@ class JobListingsScreen extends ConsumerWidget {
                             );
                           },
                           loading: () => const JobsSkeleton(),
-                          error: (_, __) => DrimErrorState(
+                          error: (_, _) => DrimErrorState(
                             title: 'Couldn\'t load job listings',
                             body:
                                 'The listings service is unavailable. '
