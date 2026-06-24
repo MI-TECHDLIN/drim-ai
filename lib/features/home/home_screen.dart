@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
+import '../../widgets/skeletons/home_skeleton.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -676,43 +677,14 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ── Loading state ──────────────────────────────────────────────────────────
-
 class _LoadingCards extends StatelessWidget {
   const _LoadingCards();
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-        3,
-        (i) => Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Container(
-            height: i == 0 ? 160 : 90,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.border, width: 2),
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-            ),
-            child: const Center(
-              child: SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.anchor,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const HomeSkeleton();
 }
 
 // ── Bottom nav ─────────────────────────────────────────────────────────────
-
 class _HomeBottomNav extends StatelessWidget {
   final AsyncValue dashboardAsync;
 
@@ -748,7 +720,6 @@ class _HomeBottomNav extends StatelessWidget {
                 label: 'Skills',
                 isActive: false,
                 onTap: () {
-                  // Navigate to skills for saved match
                   dashboardAsync.whenData((data) {
                     final d = data as DashboardData;
                     if (d.savedMatch != null) {
@@ -774,6 +745,13 @@ class _HomeBottomNav extends StatelessWidget {
                     }
                   });
                 },
+              ),
+              // ── Profile tab ───────────────────────────────────────
+              _NavItem(
+                icon: Icons.person_rounded,
+                label: 'Profile',
+                isActive: false,
+                onTap: () => context.go('/profile'),
               ),
             ],
           ),

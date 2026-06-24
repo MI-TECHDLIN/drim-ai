@@ -9,6 +9,7 @@ import '../features/confidence/confidence_delta_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/jobs/job_listings_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
+import '../features/profile/profile_route_screen.dart';
 import '../features/quiz/quiz_screen.dart';
 import '../features/roadmap/roadmap_screen.dart';
 import '../features/skills/skills_tracker_screen.dart';
@@ -21,6 +22,31 @@ final appRouter = GoRouter(
   refreshListenable: AppConfig.isConfigured
       ? GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange)
       : null,
+  errorBuilder: (context, state) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'We could not open that screen.',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(state.matchedLocation),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => context.go('/home'),
+                child: const Text('Go home'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  },
   redirect: (BuildContext context, GoRouterState state) {
     if (!AppConfig.isConfigured) return null;
     final isSplash = state.matchedLocation == '/';
@@ -72,6 +98,7 @@ final appRouter = GoRouter(
         return JobListingsScreen(careerTitle: title);
       },
     ),
+    GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
     GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
   ],
 );
