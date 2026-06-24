@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_spacing.dart';
-import '../drim_skeleton.dart';
+import 'skeleton_box.dart';
+import 'skeleton_pill.dart';
+import 'skeleton_card.dart';
 
 class SkillsSkeleton extends StatelessWidget {
   const SkillsSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return DrimShimmer(
+    return Container(
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
