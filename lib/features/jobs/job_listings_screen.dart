@@ -1,4 +1,5 @@
 import 'package:drim_ai/widgets/drim_states.dart';
+import 'package:drim_ai/widgets/skeletons/jobs_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -97,18 +98,7 @@ class JobListingsScreen extends ConsumerWidget {
                               careerTitle: careerTitle,
                             );
                           },
-                          loading: () => Column(
-                            children: [
-                              DrimLoadingCard(
-                                height: 100,
-                                message: 'Finding live opportunities...',
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              DrimLoadingCard(height: 100),
-                              const SizedBox(height: AppSpacing.md),
-                              DrimLoadingCard(height: 100),
-                            ],
-                          ),
+                          loading: () => const JobsSkeleton(),
                           error: (_, __) => DrimErrorState(
                             title: 'Couldn\'t load job listings',
                             body:
@@ -129,9 +119,6 @@ class JobListingsScreen extends ConsumerWidget {
               ),
             ),
           ),
-
-          // ── Bottom nav ─────────────────────────────────────────────────
-          _BottomNav(activeIndex: 2, careerTitle: careerTitle),
         ],
       ),
     );
@@ -419,112 +406,6 @@ class _InfoChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ── Loading state ──────────────────────────────────────────────────────────
-
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 120,
-      child: Center(
-        child: CircularProgressIndicator(
-          color: AppColors.anchor,
-          strokeWidth: 2,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Bottom nav ─────────────────────────────────────────────────────────────
-
-class _BottomNav extends StatelessWidget {
-  final int activeIndex;
-  final String careerTitle;
-
-  const _BottomNav({required this.activeIndex, required this.careerTitle});
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (Icons.home_rounded, 'HOME'),
-      (Icons.bar_chart_rounded, 'TRACKER'),
-      (Icons.work_rounded, 'JOBS'),
-      (Icons.search_rounded, 'SEARCH'),
-      (Icons.person_rounded, 'PROFILE'),
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 2)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: List.generate(items.length, (i) {
-              final isActive = i == activeIndex;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    if (i == 0) context.go('/home');
-                    if (i == 2) {
-                      // Already on jobs
-                    }
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: isActive ? 48 : 32,
-                        height: isActive ? 36 : 32,
-                        decoration: isActive
-                            ? BoxDecoration(
-                                color: AppColors.apricot,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadii.sm,
-                                ),
-                                border: Border.all(
-                                  color: AppColors.border,
-                                  width: 1.5,
-                                ),
-                              )
-                            : null,
-                        child: Icon(
-                          items[i].$1,
-                          size: 22,
-                          color: isActive ? AppColors.ink : AppColors.muted,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        items[i].$2,
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: isActive
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isActive ? AppColors.ink : AppColors.muted,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
       ),
     );
   }
