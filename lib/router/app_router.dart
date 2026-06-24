@@ -9,7 +9,7 @@ import '../features/confidence/confidence_delta_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/jobs/job_listings_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
-import '../features/profile/profile_route_screen.dart';
+import '../features/profile/profile_screen.dart';
 import '../features/quiz/quiz_screen.dart';
 import '../features/roadmap/roadmap_screen.dart';
 import '../features/skills/skills_tracker_screen.dart';
