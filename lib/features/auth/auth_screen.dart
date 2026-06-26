@@ -221,35 +221,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xl),
               ],
-
-              // ── Sign In extras ───────────────────────────────────────
-              if (!_isSignUp) ...[
-                const SizedBox(height: AppSpacing.lg),
-                _OrDivider(),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SocialButton(
-                        label: 'G',
-                        labelColor: const Color(0xFF4285F4),
-                        onPressed: () =>
-                            _showError('Google sign-in coming soon.'),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _SocialButton(
-                        label: '',
-                        labelColor: AppColors.ink,
-                        onPressed: () =>
-                            _showError('Apple sign-in coming soon.'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xl),
-              ],
+              const SizedBox(height: AppSpacing.xl),
 
               // ── Toggle link ──────────────────────────────────────────
               Center(
@@ -265,6 +237,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             ? 'Already have an account?  '
                             : 'New here?  ',
                       ),
+
                       WidgetSpan(
                         alignment: PlaceholderAlignment.baseline,
                         baseline: TextBaseline.alphabetic,
