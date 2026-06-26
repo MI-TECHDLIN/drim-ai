@@ -1,16 +1,18 @@
+import 'package:drim_ai/models/dream_company_goal.dart';
+import 'package:drim_ai/widgets/drim_bottom_nav.dart';
 import 'package:drim_ai/widgets/drim_states.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/dashboard_data.dart';
-import '../../models/skill_progress.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/skeletons/home_skeleton.dart';
+import 'package:drim_ai/features/dream_job/dream_job_search_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -92,7 +94,21 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
 
-                        const SizedBox(height: AppSpacing.xxl),
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final dreamGoalAsync = ref.watch(
+                              activeDreamGoalProvider,
+                            );
+                            return dreamGoalAsync.when(
+                              data: (goal) => goal != null
+                                  ? _DreamJobActiveCard(goal: goal)
+                                  : const _DreamJobStartCard(),
+                              loading: () => const SizedBox.shrink(),
+                              error: (_, __) =>
+                                  const SizedBox.shrink(), // ← FIXED
+                            );
+                          },
+                        ),
                       ]),
                     ),
                   ),
@@ -102,7 +118,7 @@ class HomeScreen extends ConsumerWidget {
           ),
 
           // ── Bottom nav ─────────────────────────────────────────────────
-          _HomeBottomNav(dashboardAsync: dashboardAsync),
+          const DrimBottomNav(currentRoute: '/home'),
         ],
       ),
     );
@@ -140,7 +156,14 @@ class _DashboardCards extends StatelessWidget {
         if (data.nextSkill != null)
           _NextStepCard(
             data: data,
-            onTap: () => context.go('/skills/${match.id}', extra: match),
+            onTap: () {
+              // Push the skills screen and refresh dashboard if the user changed anything there.
+              context.push('/skills/${match.id}', extra: match).then((changed) {
+                if (changed == true) {
+                  onRefresh();
+                }
+              });
+            },
           ),
 
         if (data.nextSkill != null) const SizedBox(height: AppSpacing.md),
@@ -684,130 +707,146 @@ class _LoadingCards extends StatelessWidget {
   Widget build(BuildContext context) => const HomeSkeleton();
 }
 
-// ── Bottom nav ─────────────────────────────────────────────────────────────
-class _HomeBottomNav extends StatelessWidget {
-  final AsyncValue dashboardAsync;
+class _DreamJobActiveCard extends StatelessWidget {
+  const _DreamJobActiveCard({required this.goal});
 
-  const _HomeBottomNav({required this.dashboardAsync});
+  final DreamCompanyGoal goal;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 2)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                isActive: true,
-                onTap: () {},
+    return GestureDetector(
+      onTap: () {
+        final target = '/company-roadmap/${goal.id}';
+        if (GoRouterState.of(context).matchedLocation != target) {
+          context.go(target, extra: goal);
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.anchor,
+          border: Border.all(color: AppColors.border, width: 2),
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          boxShadow: const [AppShadows.hard],
+        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.apricot,
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                  child: Text(
+                    'DREAM JOB',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${goal.doneSteps}/${goal.steps.length} STEPS',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '${goal.role} at ${goal.company}',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
               ),
-              _NavItem(
-                icon: Icons.map_outlined,
-                label: 'Roadmap',
-                isActive: false,
-                onTap: () => context.go('/roadmap'),
-              ),
-              _NavItem(
-                icon: Icons.star_rounded,
-                label: 'Skills',
-                isActive: false,
-                onTap: () {
-                  dashboardAsync.whenData((data) {
-                    final d = data as DashboardData;
-                    if (d.savedMatch != null) {
-                      context.go(
-                        '/skills/${d.savedMatch!.id}',
-                        extra: d.savedMatch,
-                      );
-                    }
-                  });
-                },
-              ),
-              _NavItem(
-                icon: Icons.work_rounded,
-                label: 'Jobs',
-                isActive: false,
-                onTap: () {
-                  dashboardAsync.whenData((data) {
-                    final d = data as DashboardData;
-                    if (d.savedMatch != null) {
-                      context.go(
-                        '/jobs/${Uri.encodeComponent(d.savedMatch!.title)}',
-                      );
-                    }
-                  });
-                },
-              ),
-              // ── Profile tab ───────────────────────────────────────
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                isActive: false,
-                onTap: () => context.go('/profile'),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            LinearProgressIndicator(
+              value: goal.progress,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.sage),
+              minHeight: 6,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
+class _DreamJobStartCard extends StatelessWidget {
+  const _DreamJobStartCard();
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return GestureDetector(
+      onTap: () {
+        final location = GoRouterState.of(context).matchedLocation;
+        if (location != '/dream-job') {
+          context.go('/dream-job');
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border, width: 2),
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          boxShadow: const [AppShadows.hard],
+        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isActive ? 52 : 36,
-              height: isActive ? 36 : 32,
-              decoration: isActive
-                  ? BoxDecoration(
-                      color: AppColors.anchor,
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    )
-                  : null,
-              child: Icon(
-                icon,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.apricot,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                border: Border.all(color: AppColors.border, width: 1.5),
+              ),
+              child: const Icon(
+                Icons.rocket_launch_rounded,
                 size: 22,
-                color: isActive ? Colors.white : AppColors.muted,
+                color: AppColors.ink,
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? AppColors.anchor : AppColors.muted,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Set a Dream Job',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  Text(
+                    'Get an AI gap analysis for any company.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
               ),
             ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
           ],
         ),
       ),

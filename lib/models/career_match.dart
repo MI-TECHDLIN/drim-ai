@@ -53,20 +53,46 @@ class SkillTag {
   );
 }
 
+class CourseResource {
+  final String name;
+  final String platform;
+  final String url;
+  final bool isFree;
+
+  const CourseResource({
+    required this.name,
+    required this.platform,
+    required this.url,
+    this.isFree = true,
+  });
+
+  factory CourseResource.fromJson(Map<String, dynamic> json) => CourseResource(
+    name: json['name'] as String,
+    platform: json['platform'] as String? ?? 'Online',
+    url: json['url'] as String? ?? '',
+    isFree: json['isFree'] as bool? ?? true,
+  );
+}
+
 class RoadmapStep {
   final int order;
   final String title;
   final String detail;
+  final List<CourseResource> resources;
 
   const RoadmapStep({
     required this.order,
     required this.title,
     required this.detail,
+    this.resources = const [],
   });
 
   factory RoadmapStep.fromJson(Map<String, dynamic> json) => RoadmapStep(
     order: json['order'] as int,
     title: json['title'] as String,
     detail: json['detail'] as String,
+    resources: (json['resources'] as List<dynamic>? ?? [])
+        .map((e) => CourseResource.fromJson(e as Map<String, dynamic>))
+        .toList(),
   );
 }
