@@ -40,16 +40,25 @@ serve(async (req) => {
       .delete()
       .eq("user_id", user.id);
 
+    
     let matches;
-    let source = "ai";
+let source = "ai";
 
-    try {
-      matches = await generateWithOpenAI(profile, quiz);
-    } catch (error) {
-      console.error("OpenAI failed, using fallback:", error);
-      matches = getFallbackMatches();
-      source = "fallback";
-    }
+try {
+  matches = await generateWithOpenAI(profile, quiz);
+  if (!matches || matches.length === 0) {
+    console.warn("AI returned empty matches, using fallback");
+    matches = getFallbackMatches();
+    source = "fallback";
+  } else {
+    console.log(`AI succeeded with ${matches.length} matches`);
+  }
+} catch (error: any) {
+  console.error("AI generation failed:", error.message);
+  console.warn("Roadmap response was invalid; using fallback matches");
+  matches = getFallbackMatches();
+  source = "fallback";
+}
 
     const { data: savedMatches, error: dbError } = await supabaseClient
       .from("career_matches")
@@ -89,49 +98,63 @@ serve(async (req) => {
 
 // deno-lint-ignore no-explicit-any
 async function generateWithOpenAI(profile: any, quiz: any) {
-  // Using Groq free tier instead of OpenAI
-  const apiKey = Deno.env.get("GROQ_API_KEY");
-  if (!apiKey) throw new Error("Groq key not configured");
+  const groqKey = Deno.env.get("GROQ_API_KEY");
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+
+  // Try Groq first, fall back to OpenAI if available
+  const apiKey = groqKey || openaiKey;
+  const isGroq = !!groqKey;
+
+  if (!apiKey) throw new Error("No AI key configured");
+
+  const baseUrl = isGroq
+    ? "https://api.groq.com/openai/v1/chat/completions"
+    : "https://api.openai.com/v1/chat/completions";
+
+  const model = isGroq ? "llama-3.3-70b-versatile" : "gpt-4o-mini";
+
+  console.log(`Using ${isGroq ? "Groq" : "OpenAI"} with model ${model}`);
 
   const systemPrompt = `You are a warm, encouraging career guidance counsellor for students.
-Return ONLY valid JSON. No prose, no markdown fences, no explanation before or after the JSON.
-Always return exactly 3 career matches.`;
+Return ONLY valid JSON. No prose, no markdown fences, no explanation before or after.
+Always return exactly 3 career matches.
+CRITICAL: Your entire response must be valid, complete JSON. Do not truncate.`;
 
-const userPrompt = `A student has completed a self-discovery quiz. Suggest exactly 3 personalised career paths.
+  const userPrompt = `A student completed a self-discovery quiz. Suggest exactly 3 personalised career paths.
 
 Student profile:
 - Name: ${profile.displayName || "Student"}
 - Age band: ${profile.ageBand || "Unknown"}
 - Education stage: ${profile.educationStage || "Unknown"}
 
-Their quiz responses:
+Quiz responses:
 - Interests: ${(quiz.interests || []).join(", ") || "Not specified"}
 - Values: ${(quiz.values || []).join(", ") || "Not specified"}
 - Strengths: ${(quiz.strengths || []).join(", ") || "Not specified"}
 - Work style: ${quiz.workStyle || "Not specified"}
 - Vision: ${(quiz.vision || []).join(", ") || "Not specified"}
 
-Return this exact JSON structure:
+Return this exact JSON structure with NO extra text:
 {
   "matches": [
     {
-      "title": "Career Title (2-4 words)",
-      "summary": "2-3 sentences describing what this person does day-to-day, the impact they have, and what makes it meaningful.",
-      "matchReason": "2-3 sentences referencing THIS student's actual answers — explain specifically why their interests, values and strengths make this a strong fit.",
+      "title": "Career Title",
+      "summary": "2-3 sentences about the role.",
+      "matchReason": "2-3 sentences referencing THIS student's specific answers.",
       "fitScore": 82,
       "requiredSkills": [
-        {"name": "Skill Name", "level": "beginner|intermediate|advanced"}
+        {"name": "Skill", "level": "beginner"}
       ],
-      "outlook": "2-3 honest sentences about job market demand, salary range, and growth trajectory.",
+      "outlook": "2-3 sentences on job market and salary.",
       "roadmap": [
         {
           "order": 1,
           "title": "Step title",
-          "detail": "Detailed, specific, actionable guidance — at least 3 sentences explaining what to do, how to do it, and why it matters at this stage.",
+          "detail": "2-3 sentences of specific actionable guidance.",
           "resources": [
             {
-              "name": "Full course or resource name",
-              "platform": "Coursera|YouTube|Udemy|freeCodeCamp|Khan Academy|edX|Kaggle|GitHub|Book|Website",
+              "name": "Resource name",
+              "platform": "Coursera",
               "url": "https://actual-url.com",
               "isFree": true
             }
@@ -143,57 +166,90 @@ Return this exact JSON structure:
 }
 
 Rules:
-- fitScore between 60-95 (realistic — not 100%)
-- 10-30 requiredSkills per career with honest levels
-- roadmap must have between 10 and 30 steps per career — be thorough
-- Each roadmap step detail must be at least 2-3 sentences
-- Each roadmap step must have 1-3 resources — real, specific, accessible courses or materials
-- Resources must have real URLs that actually exist — no made-up links
-- Prefer free resources (Coursera free audit, YouTube, freeCodeCamp, Khan Academy, Kaggle) but paid is fine if it's the best option
-- Steps should progress logically: foundations → skills → practice → portfolio → networking → job search → interview → landing the role
-- matchReason must reference the student's specific answers
-- Avoid clichés like "follow your passion"
-- Be realistic, warm, and encouraging`;
-  const response = await fetch(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
+- fitScore between 60-95
+- 3-5 requiredSkills per career
+- roadmap: 10-15 steps per career (not more than 15 to keep response size manageable)
+- Each step: 1-2 resources with real URLs
+- matchReason must reference the student's specific inputs
+- Be warm, realistic, encouraging`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 55000);
+
+  try {
+    const response = await fetch(baseUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        max_tokens: 2000,
-        temperature: 0.7,
+        model,
+        max_tokens: 8000,  // ← was 2000, now 8000
+        temperature: 0.5,  // ← lower temp = more reliable JSON
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
       }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error(`AI API error ${response.status}:`, err);
+      throw new Error(`AI ${response.status}: ${err}`);
     }
-  );
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Groq ${response.status}: ${err}`);
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      console.error("Empty content from AI:", JSON.stringify(data));
+      throw new Error("Empty response from AI");
+    }
+
+    console.log("Raw AI response length:", content.length);
+    console.log("First 200 chars:", content.substring(0, 200));
+
+    // Clean any markdown fences
+    const cleaned = content
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/gi, "")
+      .trim();
+
+    // Validate it starts and ends correctly
+    if (!cleaned.startsWith("{")) {
+      console.error("Response doesn't start with {:", cleaned.substring(0, 100));
+      throw new Error("AI response is not valid JSON — doesn't start with {");
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.error("JSON parse failed:", parseErr);
+      console.error("Cleaned content (last 200 chars):", cleaned.slice(-200));
+      throw new Error(`JSON parse error: ${parseErr}`);
+    }
+
+    if (!parsed.matches || !Array.isArray(parsed.matches) || parsed.matches.length === 0) {
+      console.error("No matches array in response:", JSON.stringify(parsed).substring(0, 200));
+      throw new Error("AI response missing matches array");
+    }
+
+    console.log(`Successfully parsed ${parsed.matches.length} career matches`);
+    return parsed.matches;
+
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      throw new Error("AI request timed out after 55 seconds");
+    }
+    throw err;
   }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content ?? "";
-
-  if (!content || typeof content !== "string" || !content.trim()) {
-    console.warn("Roadmap response was empty; using fallback matches");
-    return getFallbackMatches();
-  }
-
-  const parsed = parseModelJson(content);
-  const matches = normalizeMatches(parsed);
-  if (!matches) {
-    console.warn("Roadmap response was invalid; using fallback matches");
-    return getFallbackMatches();
-  }
-  return matches;
 }
 
 function parseModelJson(content: string) {
