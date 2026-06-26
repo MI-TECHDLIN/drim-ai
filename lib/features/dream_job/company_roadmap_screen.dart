@@ -24,8 +24,7 @@ class CompanyRoadmapScreen extends ConsumerStatefulWidget {
       _CompanyRoadmapScreenState();
 }
 
-class _CompanyRoadmapScreenState
-    extends ConsumerState<CompanyRoadmapScreen> {
+class _CompanyRoadmapScreenState extends ConsumerState<CompanyRoadmapScreen> {
   DreamCompanyGoal? _goal;
   bool _isLoading = false;
 
@@ -37,30 +36,25 @@ class _CompanyRoadmapScreenState
   }
 
   Future<void> _loadGoal() async {
-    final goal =
-        await ref.read(dreamCompanyRepositoryProvider).getActiveGoal();
+    final goal = await ref.read(dreamCompanyRepositoryProvider).getActiveGoal();
     if (mounted) setState(() => _goal = goal);
   }
 
   Future<void> _markStepDone() async {
     if (_goal == null || _isLoading) return;
-    final activeIndex =
-        _goal!.steps.indexWhere((s) => s.status == 'active');
+    final activeIndex = _goal!.steps.indexWhere((s) => s.status == 'active');
     if (activeIndex == -1) return;
 
     setState(() => _isLoading = true);
     try {
-      await ref.read(dreamCompanyRepositoryProvider).markStepDone(
-            _goal!.id,
-            activeIndex,
-            _goal!.steps,
-          );
+      await ref
+          .read(dreamCompanyRepositoryProvider)
+          .markStepDone(_goal!.id, activeIndex, _goal!.steps);
 
       // Log activity
-      await ref.read(activityRepositoryProvider).logActivity(
-            activityType: 'company_step_done',
-            intensity: 3,
-          );
+      await ref
+          .read(activityRepositoryProvider)
+          .logActivity(activityType: 'company_step_done', intensity: 3);
 
       ref.invalidate(activeDreamGoalProvider);
       await _loadGoal();
@@ -87,8 +81,10 @@ class _CompanyRoadmapScreenState
                 slivers: [
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.lg, AppSpacing.lg,
-                      AppSpacing.lg, 0,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      0,
                     ),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
@@ -118,26 +114,33 @@ class _CompanyRoadmapScreenState
                                 ],
                               ),
                             ),
-                            // Company initial badge
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                border: Border.all(
-                                    color: AppColors.border, width: 2),
-                                borderRadius:
-                                    BorderRadius.circular(AppRadii.sm),
-                                boxShadow: const [AppShadows.hardSm],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  (goal?.company ?? 'C')[0].toUpperCase(),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.anchor,
+                            // Back button
+                            GestureDetector(
+                              onTap: () {
+                                if (GoRouter.of(context).canPop()) {
+                                  context.pop();
+                                } else {
+                                  context.go('/home');
+                                }
+                              },
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  border: Border.all(
+                                    color: AppColors.border,
+                                    width: 2,
                                   ),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.sm,
+                                  ),
+                                  boxShadow: const [AppShadows.hardSm],
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back_rounded,
+                                  size: 22,
+                                  color: AppColors.ink,
                                 ),
                               ),
                             ),
@@ -165,19 +168,22 @@ class _CompanyRoadmapScreenState
                                 end: goal?.progress ?? 0,
                               ),
                               duration: const Duration(milliseconds: 500),
-                              builder: (_, val, __) => Container(
+                              builder: (_, val, _) => Container(
                                 height: 10,
                                 clipBehavior: Clip.hardEdge,
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                      color: AppColors.border, width: 2),
+                                    color: AppColors.border,
+                                    width: 2,
+                                  ),
                                 ),
                                 child: LinearProgressIndicator(
                                   value: val,
                                   backgroundColor: AppColors.surface,
                                   valueColor:
                                       const AlwaysStoppedAnimation<Color>(
-                                          AppColors.anchor),
+                                        AppColors.anchor,
+                                      ),
                                   minHeight: 10,
                                 ),
                               ),
@@ -192,7 +198,8 @@ class _CompanyRoadmapScreenState
                           ...goal.steps.map(
                             (step) => Padding(
                               padding: const EdgeInsets.only(
-                                  bottom: AppSpacing.md),
+                                bottom: AppSpacing.md,
+                              ),
                               child: _StepCard(step: step),
                             ),
                           ),
@@ -211,8 +218,10 @@ class _CompanyRoadmapScreenState
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.sm,
-                AppSpacing.lg, AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.lg,
               ),
               child: Container(
                 decoration: BoxDecoration(
@@ -228,8 +237,7 @@ class _CompanyRoadmapScreenState
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppRadii.md),
-                      side: const BorderSide(
-                          color: AppColors.border, width: 2),
+                      side: const BorderSide(color: AppColors.border, width: 2),
                     ),
                   ),
                   child: _isLoading
@@ -300,8 +308,8 @@ class _StepCard extends StatelessWidget {
                   color: isDone
                       ? AppColors.sage
                       : isLocked
-                          ? AppColors.line
-                          : AppColors.muted.withOpacity(0.4),
+                      ? AppColors.line
+                      : AppColors.muted.withOpacity(0.4),
                   height: 1.0,
                 ),
               ),
@@ -313,8 +321,7 @@ class _StepCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.sage,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                        color: AppColors.border, width: 1.5),
+                    border: Border.all(color: AppColors.border, width: 1.5),
                   ),
                   child: const Icon(
                     Icons.check_rounded,
@@ -330,10 +337,8 @@ class _StepCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.apricot,
-                    border: Border.all(
-                        color: AppColors.border, width: 1.5),
-                    borderRadius:
-                        BorderRadius.circular(AppRadii.sm - 2),
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                    borderRadius: BorderRadius.circular(AppRadii.sm - 2),
                   ),
                   child: Text(
                     'ACTIVE',

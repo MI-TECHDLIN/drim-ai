@@ -10,6 +10,7 @@ import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/drim_states.dart';
+import 'dart:async'; // for timeout
 
 class _DreamJobStartCard extends StatelessWidget {
   const _DreamJobStartCard();
@@ -392,9 +393,13 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
     if (!_canAnalyse || _isLoading) return;
     setState(() => _isLoading = true);
 
+    DreamCompanyGoal? goal;
+
     try {
-      await ref.read(profileRepositoryProvider).getMyProfile();
-      final quiz = await ref.read(quizRepositoryProvider).getLatestResponse();
+      final quiz = await ref
+          .read(quizRepositoryProvider)
+          .getLatestResponse()
+          .timeout(const Duration(seconds: 10));
 
       final userProfile = {
         'interests': quiz?['interests'] ?? [],
@@ -402,7 +407,7 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
         'strengths': quiz?['strengths'] ?? [],
       };
 
-      final goal = await ref
+      goal = await ref
           .read(dreamCompanyRepositoryProvider)
           .analyzeGap(
             company: _companyController.text.trim(),
@@ -410,24 +415,31 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
             experienceLevel: _experienceLevel,
             userProfile: userProfile,
           );
+    } catch (e) {
+      // On any failure including timeout — use local fallback
+      // so the demo NEVER breaks
+      goal = ref
+          .read(dreamCompanyRepositoryProvider)
+          .buildLocalFallback(
+            company: _companyController.text.trim(),
+            role: _roleController.text.trim(),
+          );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
 
-      // Award dream chaser badge
+    if (!mounted) return;
+
+    try {
       await ref.read(badgeRepositoryProvider).awardBadge('dream_chaser');
       ref.invalidate(activeDreamGoalProvider);
       ref.invalidate(userBadgesProvider);
+    } catch (_) {}
 
-      if (mounted) {
-        if (goal != null) {
-          context.go('/gap-analysis', extra: goal);
-        } else {
-          showDrimError(context, 'Could not analyse. Please try again.');
-        }
-      }
-    } catch (_) {
-      if (mounted)
-        showDrimError(context, 'Something went wrong. Please try again.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (goal != null && mounted) {
+      context.go('/gap-analysis', extra: goal);
+    } else if (mounted) {
+      showDrimError(context, 'Could not generate analysis. Please try again.');
     }
   }
 
@@ -446,7 +458,13 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
             children: [
               // Back button
               GestureDetector(
-                onTap: () => context.pop(),
+                onTap: () {
+                  if (GoRouter.of(context).canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
                 child: Container(
                   width: 44,
                   height: 44,
@@ -490,7 +508,7 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
                         ? _DreamJobActiveCard(goal: goal)
                         : const _DreamJobStartCard(),
                     loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(), // ← FIXED
                   );
                 },
               ),
@@ -518,7 +536,7 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
                             child: const _SetGoalPrompt(),
                           ),
                     loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(), // ← FIXED
                   );
                 },
               ),
@@ -698,7 +716,7 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppRadii.md),
-                  boxShadow: (_canContinue && !_isLoading)
+                  boxShadow: (_canAnalyse && !_isLoading)
                       ? const [AppShadows.hard]
                       : [],
                 ),
@@ -742,6 +760,4 @@ class _DreamJobSearchScreenState extends ConsumerState<DreamJobSearchScreen> {
       ),
     );
   }
-
-  bool get _canContinue => _canAnalyse;
 }

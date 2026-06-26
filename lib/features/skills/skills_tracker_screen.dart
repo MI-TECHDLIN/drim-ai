@@ -32,6 +32,7 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
   List<SkillProgress>? _skills;
   bool _hasError = false;
   bool _isLoading = true;
+  bool _hasChanged = false;
 
   @override
   void initState() {
@@ -83,6 +84,7 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
     final isDone = next == 'done';
 
     setState(() => skill.status = next);
+    _hasChanged = true;
     ref.invalidate(dashboardProvider);
 
     if (!skill.id.startsWith('local_')) {
@@ -192,9 +194,13 @@ class _SkillsTrackerScreenState extends ConsumerState<SkillsTrackerScreen> {
                           children: [
                             _SquareIconButton(
                               icon: Icons.arrow_back_rounded,
-                              onTap: () => GoRouter.of(context).canPop()
-                                  ? context.pop()
-                                  : context.go('/home'),
+                              onTap: () {
+                                if (GoRouter.of(context).canPop()) {
+                                  context.pop(_hasChanged);
+                                } else {
+                                  context.go('/home');
+                                }
+                              },
                             ),
                             _SquareIconButton(
                               icon: Icons.more_horiz_rounded,

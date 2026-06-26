@@ -11,6 +11,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/skeletons/skeleton_box.dart';
 import '../../widgets/skeletons/skeleton_pill.dart';
 import '../../widgets/drim_states.dart';
+import '../../widgets/drim_bottom_nav.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -108,7 +109,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
 
           // ── Bottom nav ─────────────────────────────────────────────
-          _ProfileBottomNav(dashboardAsync: dashboardAsync),
+          const DrimBottomNav(currentRoute: '/profile'),
         ],
       ),
     );
@@ -680,137 +681,6 @@ class _ProfileSkeleton extends StatelessWidget {
 
             // Sign out button
             SkeletonBox(height: 52, borderRadius: AppRadii.md),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Bottom nav ─────────────────────────────────────────────────────────────
-
-class _ProfileBottomNav extends StatelessWidget {
-  final AsyncValue dashboardAsync;
-
-  const _ProfileBottomNav({required this.dashboardAsync});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 2)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                isActive: false,
-                onTap: () => context.go('/home'),
-              ),
-              _NavItem(
-                icon: Icons.map_outlined,
-                label: 'Roadmap',
-                isActive: false,
-                onTap: () => context.go('/roadmap'),
-              ),
-              _NavItem(
-                icon: Icons.star_rounded,
-                label: 'Skills',
-                isActive: false,
-                onTap: () {
-                  dashboardAsync.whenData((data) {
-                    final d = data as dynamic;
-                    if (d.savedMatch != null) {
-                      context.go(
-                        '/skills/${d.savedMatch.id}',
-                        extra: d.savedMatch,
-                      );
-                    }
-                  });
-                },
-              ),
-              _NavItem(
-                icon: Icons.work_rounded,
-                label: 'Jobs',
-                isActive: false,
-                onTap: () {
-                  dashboardAsync.whenData((data) {
-                    final d = data as dynamic;
-                    if (d.savedMatch != null) {
-                      context.go(
-                        '/jobs/${Uri.encodeComponent(d.savedMatch.title)}',
-                      );
-                    }
-                  });
-                },
-              ),
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                isActive: true,
-                onTap: () {},
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isActive ? 52 : 36,
-              height: isActive ? 36 : 32,
-              decoration: isActive
-                  ? BoxDecoration(
-                      color: AppColors.anchor,
-                      borderRadius: BorderRadius.circular(AppRadii.sm),
-                    )
-                  : null,
-              child: Icon(
-                icon,
-                size: 22,
-                color: isActive ? Colors.white : AppColors.muted,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? AppColors.anchor : AppColors.muted,
-              ),
-            ),
           ],
         ),
       ),

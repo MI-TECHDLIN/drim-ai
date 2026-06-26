@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CareerDetailScreen extends ConsumerStatefulWidget {
   final String matchId;
@@ -69,7 +70,7 @@ class _CareerDetailScreenState extends ConsumerState<CareerDetailScreen> {
       ref.invalidate(dashboardProvider);
 
       if (mounted) {
-        context.go('/skills/${widget.matchId}', extra: _match);
+        context.push('/skills/${widget.matchId}', extra: _match);
       }
     } catch (e, st) {
       // Log the error for debugging and show a helpful message with retry.
@@ -510,12 +511,29 @@ class _SkillChip extends StatelessWidget {
   }
 }
 
-class _RoadmapStepCard extends StatelessWidget {
+class _RoadmapStepCard extends StatefulWidget {
   final RoadmapStep step;
   const _RoadmapStepCard({required this.step});
 
   @override
+  State<_RoadmapStepCard> createState() => _RoadmapStepCardState();
+}
+
+class _RoadmapStepCardState extends State<_RoadmapStepCard> {
+  bool _expanded = false;
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final step = widget.step;
+    final hasResources = step.resources.isNotEmpty;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -523,63 +541,102 @@ class _RoadmapStepCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.md),
         boxShadow: const [AppShadows.hardSm],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Number box
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              border: Border(
-                right: BorderSide(color: AppColors.border, width: 2),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                '${step.order}',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.ink,
-                ),
-              ),
-            ),
-          ),
-
-          // Apricot accent bar
-          Container(
-            width: 4,
-            color: AppColors.apricot,
-            margin: const EdgeInsets.only(right: AppSpacing.md),
-          ),
-
-          // Content
-          Expanded(
+          // ── Step header row ──────────────────────────────────────────
+          InkWell(
+            onTap: hasResources
+                ? () => setState(() => _expanded = !_expanded)
+                : null,
+            borderRadius: BorderRadius.circular(AppRadii.md),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppSpacing.md,
-                horizontal: AppSpacing.xs,
-              ),
-              child: Column(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    step.title.toUpperCase(),
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                      letterSpacing: 0.3,
+                  // Number box
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.sand,
+                      border: Border.all(color: AppColors.border, width: 1.5),
+                      borderRadius: BorderRadius.circular(AppRadii.sm - 2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${step.order}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    step.detail,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppColors.muted,
-                      height: 1.45,
+
+                  const SizedBox(width: AppSpacing.md),
+
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                step.title.toUpperCase(),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                            if (hasResources)
+                              Icon(
+                                _expanded
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: AppColors.muted,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          step.detail,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: AppColors.muted,
+                            height: 1.45,
+                          ),
+                        ),
+                        if (hasResources && !_expanded) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.menu_book_rounded,
+                                size: 13,
+                                color: AppColors.anchor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${step.resources.length} ${step.resources.length == 1 ? 'resource' : 'resources'}  —  tap to view',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.anchor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
@@ -587,10 +644,209 @@ class _RoadmapStepCard extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: AppSpacing.md),
+          // ── Resources list (expanded) ─────────────────────────────────
+          if (_expanded && hasResources) ...[
+            Container(
+              margin: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.sand,
+                border: Border.all(color: AppColors.border, width: 1.5),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      4,
+                    ),
+                    child: Text(
+                      'RESOURCES TO LEARN THIS',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.muted,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  ...step.resources.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final resource = entry.value;
+                    return Column(
+                      children: [
+                        if (i > 0)
+                          const Divider(
+                            color: AppColors.line,
+                            height: 1,
+                            thickness: 1,
+                            indent: AppSpacing.md,
+                            endIndent: AppSpacing.md,
+                          ),
+                        InkWell(
+                          onTap: resource.url.isNotEmpty
+                              ? () => _openUrl(resource.url)
+                              : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm + 2,
+                            ),
+                            child: Row(
+                              children: [
+                                // Platform icon
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: _platformColor(resource.platform),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.sm - 2,
+                                    ),
+                                    border: Border.all(
+                                      color: AppColors.border,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    _platformIcon(resource.platform),
+                                    size: 16,
+                                    color: AppColors.ink,
+                                  ),
+                                ),
+
+                                const SizedBox(width: AppSpacing.sm),
+
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        resource.name,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.ink,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            resource.platform,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              color: AppColors.muted,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 5,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: resource.isFree
+                                                  ? AppColors.sage.withOpacity(
+                                                      0.25,
+                                                    )
+                                                  : AppColors.apricot
+                                                        .withOpacity(0.25),
+                                              borderRadius:
+                                                  BorderRadius.circular(3),
+                                            ),
+                                            child: Text(
+                                              resource.isFree ? 'FREE' : 'PAID',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                                color: resource.isFree
+                                                    ? AppColors.anchor
+                                                    : AppColors.apricot,
+                                                letterSpacing: 0.4,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const Icon(
+                                  Icons.open_in_new_rounded,
+                                  size: 16,
+                                  color: AppColors.muted,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Color _platformColor(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'youtube':
+        return const Color(0xFFFF0000).withOpacity(0.12);
+      case 'coursera':
+        return const Color(0xFF0056D2).withOpacity(0.12);
+      case 'kaggle':
+        return const Color(0xFF20BEFF).withOpacity(0.12);
+      case 'khan academy':
+        return const Color(0xFF14BF96).withOpacity(0.12);
+      case 'udemy':
+        return const Color(0xFFA435F0).withOpacity(0.12);
+      case 'freecodecamp':
+        return const Color(0xFF0A0A23).withOpacity(0.08);
+      case 'github':
+        return AppColors.line;
+      case 'book':
+        return AppColors.apricot.withOpacity(0.2);
+      default:
+        return AppColors.sand;
+    }
+  }
+
+  IconData _platformIcon(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'youtube':
+        return Icons.play_circle_outline_rounded;
+      case 'coursera':
+      case 'edx':
+      case 'udemy':
+      case 'khan academy':
+        return Icons.school_rounded;
+      case 'kaggle':
+        return Icons.bar_chart_rounded;
+      case 'github':
+        return Icons.code_rounded;
+      case 'book':
+        return Icons.menu_book_rounded;
+      case 'website':
+        return Icons.language_rounded;
+      default:
+        return Icons.link_rounded;
+    }
   }
 }
 
