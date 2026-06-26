@@ -93,6 +93,7 @@ class HomeScreen extends ConsumerWidget {
                             onRetry: () => ref.invalidate(dashboardProvider),
                           ),
                         ),
+                        const SizedBox(height: AppSpacing.xl),
 
                         Consumer(
                           builder: (context, ref, _) {
