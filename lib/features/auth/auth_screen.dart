@@ -35,7 +35,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _submit() async {
     if (!AppConfig.isConfigured) {
-      _showError('Supabase is not configured. Run with --dart-define flags.');
+      _showError('Supabase is not configured.');
       return;
     }
 
